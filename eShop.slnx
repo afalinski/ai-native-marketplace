@@ -4,6 +4,7 @@
     <Project Path="src/Basket.API/Basket.API.csproj" />
     <Project Path="src/Catalog.API/Catalog.API.csproj" />
     <Project Path="src/eShop.ServiceDefaults/eShop.ServiceDefaults.csproj" />
+    <Project Path="src/eShop.Mcp/eShop.Mcp.csproj" />
     <Project Path="src/EventBus/EventBus.csproj" />
     <Project Path="src/EventBusRabbitMQ/EventBusRabbitMQ.csproj" />
     <Project Path="src/Identity.API/Identity.API.csproj" />
@@ -29,6 +30,7 @@
     <Project Path="tests/Ordering.UnitTests/Ordering.UnitTests.csproj" />
     <Project Path="tests/Webhooks.FunctionalTests/Webhooks.FunctionalTests.csproj" />
     <Project Path="tests/eShop.AppHost.UnitTests/eShop.AppHost.UnitTests.csproj" />
+    <Project Path="tests/eShop.Mcp.FunctionalTests/eShop.Mcp.FunctionalTests.csproj" />
     <Project Path="tests/ClientApp.UnitTests/ClientApp.UnitTests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">

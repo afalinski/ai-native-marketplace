@@ -81,3 +81,13 @@ Format: **Hypothesis → What I did → Result (numbers) → Conclusion / next s
 - Run 3, deny rules alone (hook removed in the clone): blocked `curl`, `/mingw64/bin/curl`, `Invoke-WebRequest`, `cat .env`, `Get-Content .env`. Let through: `bash -c "curl --version"`.
 - Run 4, deny rules plus the guard hook: blocked all five above and `bash -c "curl ..."`. A first version of the hook missed `.env` in an escaped string (`\".env\"`); fixed and added to the tests. Let through, as expected: `node -e "fetch('http://localhost:1')"`.
 - Conclusion: the model caught an obvious injection, but that is not a control. Deny rules and the hook cover each other's gaps for commands that name the file or tool. A script that opens a socket itself passes both. Only the OS sandbox closes that, and it does not run on native Windows (ADR-006).
+
+## E10 prelude. Does Claude Code answer elicitation from our server? (2026-11-13)
+
+- Path 1 (MRTR, stateless server, SDK 2.4.0): works. Path 2 (stateful + ElicitAsync) was not needed, so it was not tried.
+- Claude Code 2.1.322 declared `elicitation: {form, url}` and protocol revision `2026-07-28`. On the server, `IsMrtrSupported` was `True`.
+- Flow seen in the server log: first `tools/call` throws `InputRequiredException`. Claude Code sends a second `tools/call` with `InputResponses`. The tool reads the answer.
+- Test was headless (`claude -p`) with an `Elicitation` hook that answers by itself. Hook accept gave `accepted`. Hook decline gave `declined`.
+- No env vars needed (no `MCP_PROTOCOL_NEGOTIATION`).
+- Decision: `ElicitationMode = Mrtr`. Fallback stays `TwoStepCode` if a client has no MRTR.
+- Not proven yet (pending human check): the real dialog in the terminal CLI, and in the VS Code panel. The hook skipped the dialog.

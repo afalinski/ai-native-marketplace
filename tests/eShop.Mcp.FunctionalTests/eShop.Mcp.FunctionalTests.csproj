@@ -1,0 +1,28 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.0">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPublishable>false</IsPublishable>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <PackageReference Include="xunit.v3.mtp-v2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\eShop.Mcp\eShop.Mcp.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\..\src\Ordering.Infrastructure\Ordering.Infrastructure.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\..\src\Catalog.API\Catalog.API.csproj" IsAspireProjectResource="false" Aliases="CatalogApi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\eval\mcp\create-readonly-role.sql" Link="create-readonly-role.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
