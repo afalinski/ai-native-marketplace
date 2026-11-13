@@ -7,6 +7,10 @@
         "Authorization": "Bearer ${GITHUB_PAT}",
         "X-MCP-Toolsets": "repos,issues,pull_requests,actions"
       }
+    },
+    "eshop": {
+      "type": "http",
+      "url": "http://localhost:5230/mcp"
     }
   }
 }
