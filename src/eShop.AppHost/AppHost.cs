@@ -20,8 +20,13 @@ var orderDb = postgres.AddDatabase("orderingdb");
 var launchProfileName = ShouldUseHttpForEndpoints() ? "http" : "https";
 
 // Services
+// Both MCP secrets have a generated default that Aspire keeps in user secrets (persist), so a fresh clone starts without setup.
+// A value set with `dotnet user-secrets` or `--Parameters:<name>` overrides the generated one.
+var mcpClientSecret = builder.AddParameter("mcp-client-secret", new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+
 var identityApi = builder.AddDotnetProject("identity-api", "../Identity.API", o => o.LaunchProfileName = launchProfileName)
     .WithExternalHttpEndpoints()
+    .WithEnvironment("McpClientSecret", mcpClientSecret)
     .WithReference(identityDb)
     .WithHttpHealthCheck("/health");
 
@@ -44,6 +49,7 @@ builder.AddDotnetProject("eshop-mcp", "../eShop.Mcp")
     .WithEnvironment("ConnectionStrings__catalogdb-readonly", ReadOnlyConnectionString(postgres, mcpPassword, "catalogdb"))
     .WithEnvironment("ConnectionStrings__orderingdb-readonly", ReadOnlyConnectionString(postgres, mcpPassword, "orderingdb"))
     .WithEnvironment("Identity__Url", identityEndpoint)
+    .WithEnvironment("Identity__ClientSecret", mcpClientSecret)
     .WithReference(orderingApi)
     .WaitFor(catalogApi)
     .WaitFor(orderingApi);

@@ -39,7 +39,7 @@
         // client want to access resources (aka scopes)
         public static IEnumerable<Client> GetClients(IConfiguration configuration)
         {
-            return new List<Client>
+            var clients = new List<Client>
             {
                 new Client
                 {
@@ -187,6 +187,28 @@
                     }
                 }
             };
+
+            // Machine client of the eShop.Mcp server (cancel_order). Only registered when a secret is configured.
+            var mcpClientSecret = configuration["McpClientSecret"];
+            if (!string.IsNullOrEmpty(mcpClientSecret))
+            {
+                clients.Add(new Client
+                {
+                    ClientId = "eshop-mcp",
+                    ClientName = "eShop MCP Server",
+                    AllowedGrantTypes = GrantTypes.ClientCredentials,
+                    ClientSecrets =
+                    {
+                        new Secret(mcpClientSecret.Sha256())
+                    },
+                    AllowedScopes =
+                    {
+                        "orders"
+                    }
+                });
+            }
+
+            return clients;
         }
     }
 }

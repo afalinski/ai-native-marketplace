@@ -1,7 +1,10 @@
 using eShop.Mcp.Data;
+using eShop.Mcp.Ordering;
+using eShop.Mcp.Tools;
 using eShop.ServiceDefaults;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Npgsql;
 
@@ -14,6 +17,14 @@ builder.AddKeyedNpgsqlDataSource("orderingdb-readonly");
 builder.Services.AddSingleton(sp => new ReadOnlyDb(
     sp.GetRequiredKeyedService<NpgsqlDataSource>("catalogdb-readonly"),
     sp.GetRequiredKeyedService<NpgsqlDataSource>("orderingdb-readonly")));
+
+// Identity:Url and Identity:ClientSecret are read when the first token is requested, so the server starts without them.
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddHttpClient(ClientCredentialsTokenProvider.HttpClientName);
+builder.Services.AddSingleton<ClientCredentialsTokenProvider>();
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton<CancelConfirmation>();
+builder.Services.AddOrderingClient();
 
 builder.Services
     .AddMcpServer(options => options.ServerInfo = new() { Name = "eshop", Version = "1.0.0" })
