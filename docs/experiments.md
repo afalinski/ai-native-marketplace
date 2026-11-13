@@ -91,3 +91,70 @@ Format: **Hypothesis → What I did → Result (numbers) → Conclusion / next s
 - No env vars needed (no `MCP_PROTOCOL_NEGOTIATION`).
 - Decision: `ElicitationMode = Mrtr`. Fallback stays `TwoStepCode` if a client has no MRTR.
 - Not proven yet (pending human check): the real dialog in the terminal CLI, and in the VS Code panel. The hook skipped the dialog.
+
+## E10. Custom eShop MCP vs generic Postgres MCP vs no MCP (2026-11-13)
+
+Hypothesis (written before the pilot ran, and before the domain tools were designed, see the spec section 7):
+- M2 (our eShop.Mcp) is more accurate on questions that need several steps, and it uses fewer tokens.
+- M1 (generic Postgres MCP Pro) does better on questions that no domain tool covers.
+- M0 (no MCP) cannot answer. The good result for M0 is to say so (`CANNOT_ANSWER`), not to guess.
+
+Setup:
+- Model: Sonnet, headless `claude -p`, same prompt for every run (`eval/mcp/prompt.md`: answer with the tools you have, or start with `CANNOT_ANSWER`).
+- 10 questions with known answers (`eval/mcp/questions.json`), written before the domain tools. 6 need one tool call (`singleTool: true`), 4 do not (`singleTool: false`). Fixed seed data, reseeded by the runner before the run.
+- M0: no MCP. `Read`, `Grep`, `Glob` only.
+- M1: Postgres MCP Pro 1.6.0 (`crystaldba/postgres-mcp`, image pinned by digest `sha256:dbbd3468...b6e6b` in `m1.json`, Docker, stdio, `--access-mode=restricted`). One server instance has one database URI, so there are two: `pgcatalog` and `pgordering`, both with the read-only role `mcp_readonly`. We checked that a `DELETE` is refused.
+- M2: our eShop.Mcp, read tools only. `cancel_order` is disallowed.
+- All variants: `--strict-mcp-config`; `Bash`, `PowerShell`, `Write`, `Edit`, `WebFetch`, `WebSearch` disallowed, so the agent cannot use `docker exec psql` to go around MCP. Also `Read(./eval/**)` and `Read(./tests/**)` are denied (see the data leakage below). By the permissions docs, a `Read(path)` deny rule also covers Grep and Glob; `Grep(path)` and `Glob(path)` rules do not match, so we do not use them. `src/` stays readable.
+- Grader: deterministic. The expected value must be in the final answer (substring, or regex for numbers). `CANNOT_ANSWER` = abstained (also when the model wraps it in markdown, like `**CANNOT_ANSWER**`). No LLM judge.
+- Final N = 1 (30 runs). We did not run N=3 (spec step 6): that is the owner's decision because of the Pro usage limits. The results are a first signal, not proof.
+
+Data leakage we found and fixed: in the first M0 run the agent read `eval/mcp/seed-*.sql` and answered four questions from it (it said so in the answer, but the grader counted them). That first M0 run was 5 correct / 5 abstained / 0 wrong. We blocked `eval/**` and `tests/**` for all variants and ran M0 again: the result is 1 correct / 9 abstained / 0 wrong. The M1 and M2 logs never touched `eval/` or `tests/`, so they were not re-run. In the new M0 logs the agent still tried to read `eval/` three times (q02 twice, q09 once); every try was denied and returned no content. `docs/` was not blocked and it does hold answer values: `docs/demo/mcp-cancel-order.md` has the ids that q04 asks for and the orders of Jane Fox (9001-9005), and `docs/experiments.md` and the plan describe the eval. The fixed M0 run read `docs/experiments.md` and the plan and still abstained on 9 of 10 questions, so the M0 numbers stand. Before an N=3 run, deny `Read(./docs/**)` or run from a clean copy of the repo.
+
+Result, N=1 (cost = total for 10 runs, an API-equivalent estimate for the Pro subscription, not money spent). The M0 row is the second run, after the fix:
+
+| Variant | Correct | Abstained | Wrong | Mean tool calls | Mean tokens (input+output) | Mean tokens incl. cache | Mean seconds | Total cost for 10 runs (API-equivalent estimate) |
+|---|---|---|---|---|---|---|---|---|
+| M0 no MCP (after blocking eval/ and tests/) | 1 | 9 | 0 | 1.7 | 746 | 90,549 | 8.2 | $0.73 |
+| M1 Postgres MCP Pro | 10 | 0 | 0 | 3.4 | 769 | 156,757 | 7.8 | $0.76 |
+| M2 eShop.Mcp | 10 | 0 | 0 | 6.8 | 881 | 139,009 | 13.1 | $0.94 |
+
+"Tool calls" include the `ToolSearch` call that Claude Code makes to load an MCP tool. "Input tokens" are small because most input is cached; the cache column adds it back. The order flips when cache tokens are counted: without cache M2 uses more than M1 (881 vs 769), with cache M2 uses fewer (139,009 vs 156,757). So we do not claim a token winner.
+
+Per question, singleTool = true (tool calls / seconds):
+
+| Question | M0 | M1 | M2 |
+|---|---|---|---|
+| q01 out-of-stock products | abstained | correct, 3 / 5.8 s | correct, 10 / 19.9 s |
+| q02 price of Trail Guide Map | abstained | correct, 2 / 4.7 s | correct, 2 / 7.2 s |
+| q03 status of order 9007 | abstained | correct, 3 / 5.5 s | correct, 2 / 11.5 s |
+| q04 orders stuck over 2 h | abstained | correct, 5 / 12.0 s | correct, 2 / 8.2 s |
+| q05 orders of Jane Fox | abstained | correct, 2 / 6.7 s | correct, 2 / 8.0 s |
+| q10 total of order 9002 | abstained | correct, 2 / 5.6 s | correct, 2 / 9.0 s |
+
+Per question, singleTool = false:
+
+| Question | M0 | M1 | M2 |
+|---|---|---|---|
+| q06 total spent by Marcus Lee | abstained | correct, 4 / 10.1 s | correct, 2 / 9.6 s |
+| q07 open orders with an out-of-stock product | abstained | correct, 7 / 13.2 s | correct, 21 / 29.2 s |
+| q08 card types | correct (from source code) | correct, 3 / 6.3 s | correct, 3 / 7.3 s |
+| q09 order with a discount | abstained | correct, 3 / 8.2 s | correct, 22 / 21.1 s |
+
+What surprised us:
+- M0 first looked too good (5 correct) because it could read the seed files in the repo. That was our harness bug (data leakage). After the fix M0 answers only q08 (the card types are in the Ordering source code) and abstains on the rest. That is the behaviour we wanted from M0.
+- No wrong answers at all, in any variant. Nobody guessed. M0 abstained when it had no data.
+- M2 was not better on accuracy: M1 and M2 both got 10 of 10. The first part of the hypothesis (M2 more accurate on multi-step questions) is not supported at N=1.
+- M2 was better where a domain tool fits the question: q04 (2 calls vs 5), q06 (2 vs 4, 367 vs 1,081 tokens), q10 (346 vs 557 tokens).
+- M2 was much worse where no tool fits: q01 (stock), q07 and q09 (discount) took 10, 21 and 22 calls. `search_catalog` has `in_stock_only`, but no filter for out-of-stock items, so the agent searched every category; for the discount it opened orders one by one. M1 needed 3, 7 and 3 tool calls for the same questions (see the tables above; the q07 log shows 6 `execute_sql` calls, including schema discovery and one query against the wrong schema). This fits the second part of the hypothesis (M1 is better on questions no domain tool covers).
+- Token use is mixed: M2 used more tokens in total (881 vs 769), but fewer on the questions that its tools cover. The "fewer tokens" part is not shown.
+- Design lesson for the server: a missing filter costs more than a missing tool. an out-of-stock filter on `search_catalog` and an order filter for discounts would remove most of the extra calls. This is an idea to test, not done yet.
+
+Threats to validity:
+- N=1: one run per cell. Differences like 7.8 s vs 13.1 s can be noise.
+- One model (Sonnet), one prompt, one machine, one seed.
+- Questions are our own, written by us, 10 of them; only 4 are not covered by a single domain tool.
+- M0 could read the answers from the repo; fixed (see above). `docs/` is still readable and holds answer values (see the data leakage above); the fixed M0 run read it and still abstained, so the numbers stand, but N=3 needs `Read(./docs/**)` denied or a clean copy.
+- q01 is labelled `singleTool: true`, but no tool answers it in one call (M1 also needed 3). The label was not changed after the runs. q04 is worded so that it may leave out orders in StockConfirmed; the expected answer is checked against the seed, not against every reading of the question. The grader checks that the expected value is present and does not penalise extra wrong ids; we checked the logs and found none in the pilot.
+- Cost and tokens come from the CLI. The cost is an API-equivalent estimate. The mean seconds include the Docker start of M1 and Claude Code start-up.
+- Postgres MCP Pro containers stayed running after some runs (21 containers at the end); the runner now stops them. This did not change results.

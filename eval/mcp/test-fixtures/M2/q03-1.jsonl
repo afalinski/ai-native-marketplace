@@ -1,0 +1,2 @@
+{"type": "system", "subtype": "init"}
+{"type": "result", "subtype": "success", "result": "CANNOT_ANSWER I have no access to order data.", "duration_ms": 4000, "num_turns": 1, "total_cost_usd": 0.05, "usage": {"input_tokens": 100, "output_tokens": 20}}

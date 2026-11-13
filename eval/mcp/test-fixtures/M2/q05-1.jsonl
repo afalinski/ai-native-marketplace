@@ -1,0 +1,4 @@
+{"type": "system", "subtype": "init"}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "0", "name": "x", "input": {}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "1", "name": "x", "input": {}}]}}
+{"type": "result", "subtype": "success", "result": "Jane Fox has orders 9001 and 9002.", "duration_ms": 4000, "num_turns": 3, "total_cost_usd": 0.05, "usage": {"input_tokens": 100, "output_tokens": 20}}

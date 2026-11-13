@@ -1,0 +1,2 @@
+{"type": "system"}
+{"type": "result", "result": "**CANNOT_ANSWER** no data.", "duration_ms": 1000, "total_cost_usd": 0.01, "usage": {"input_tokens": 1, "output_tokens": 1}}

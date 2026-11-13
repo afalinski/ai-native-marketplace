@@ -49,3 +49,22 @@ against the final answer (`match` still applies). Use it for numbers, so that `1
 | q08 | orderingdb: `SELECT "Name" FROM ordering.cardtypes ORDER BY "Id";` | Amex, Visa, MasterCard |
 | q09 | orderingdb: `SELECT "OrderId","Discount" FROM ordering."orderItems" WHERE "Discount" > 0;` | 9015, 30 |
 | q10 | orderingdb: `SELECT sum("UnitPrice" * "Units" - "Discount") FROM ordering."orderItems" WHERE "OrderId" = 9002;` | 249.97 |
+
+## Running the eval (E10)
+
+Files: `run-eval.ps1` (runner), `grade.ps1` (grader), `prompt.md` (same prompt for every run), `config/m0.json`, `m1.json`, `m2.json`, `test-fixtures/` (grader test).
+
+```powershell
+dotnet run --project src/eShop.AppHost -- --McpEval=true      # keep running
+$env:MCP_READONLY_PASSWORD = '<mcp_readonly password>'        # AppHost user-secret Parameters:mcp-readonly-password
+pwsh eval/mcp/run-eval.ps1 -Variants M0,M1,M2 -Runs 1 -Model sonnet [-Questions q05,q06]
+pwsh eval/mcp/grade.ps1 -ResultsDir eval/mcp/results/<folder>
+```
+
+The runner reseeds first. `$env:CLAUDE_EXE` overrides the Claude Code binary (default: the VS Code extension binary). Raw logs go to `eval/mcp/results/` (git-ignored). Use `-Questions` to resume after a usage limit.
+
+M1 = two Postgres MCP Pro instances (`crystaldba/postgres-mcp` 1.6.0, image pinned by digest in `m1.json`, Docker, stdio, `--access-mode=restricted`), one per database, because one instance takes one `DATABASE_URI`. Run `docker pull crystaldba/postgres-mcp` once. `m1.json` has no password: it reads `${PG_CATALOG_URI}` and `${PG_ORDERING_URI}`, which the runner sets from the password and the mapped port of the postgres container (`postgresql://mcp_readonly:<password>@host.docker.internal:<port>/<db>`). To use `m1.json` by hand, set both variables yourself.
+
+Grader test: `pwsh eval/mcp/grade.ps1 -ResultsDir eval/mcp/test-fixtures/M2` prints 1 correct, 2 abstained (one is `**CANNOT_ANSWER**` in markdown), 1 wrong. `test-fixtures/regex` checks the regex match (`114.50` is wrong, `14.50` and `14.5` are correct for q02).
+
+Data leakage (found and fixed): the first M0 run read `eval/mcp/seed-*.sql` and answered from it (5/5/0). The runner now disallows `Read(./eval/**)` and `Read(./tests/**)` for all variants (a `Read(path)` rule also covers Grep and Glob; `Grep(path)`/`Glob(path)` rules do not match, per the permissions docs). M0 then gave 1 correct / 9 abstained / 0 wrong.

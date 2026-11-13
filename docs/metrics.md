@@ -125,6 +125,7 @@ Tokens for this round were not captured.
 | Task skills | 3 (`add-endpoint`, `add-integration-event`, `add-migration`) |
 | Skill trigger check | 4 of 4 prompts as intended (one run each) |
 | Reference task in three setups (A0, B, C) | measured, see below and E8 |
+| Tool-design eval (E10), N=1 pilot, 10 questions | M0 no MCP 1 correct / 9 abstained (first run read the seed files: 5/5/0; after blocking eval/** and tests/** it is 1/9/0); M1 Postgres MCP Pro 10 / 0 / 0; M2 eShop.Mcp 10 / 0 / 0; no wrong answers; see below and E10 |
 
 ### Reference task in three setups (2026-11-13, E8)
 
@@ -146,3 +147,13 @@ Price-range filter in Catalog v2 with a functional test. Model Sonnet, headless,
 | C | 35,160 |
 
 Against the stage 0 estimate of 2–2.5 h by hand: every run finished in under 4 minutes of agent time. Human review time is not included and was not measured. The sample is 1–3 runs per setup on one easy task, so read the differences as direction, not size.
+
+### Tool-design eval, N=1 pilot (2026-11-13, E10)
+
+10 questions, Sonnet, headless, one run per cell (30 runs). First signal, not proof. Data leakage found and fixed: the first M0 run read the seed files (5/5/0); after blocking `eval/**` and `tests/**` the M0 row below (1/9/0) is the reported one. Cost is the total for 10 runs, an API-equivalent estimate (Pro subscription, not money spent). Tokens: without cache M2 > M1 (881 vs 769), with cache M2 < M1 (139,009 vs 156,757), so no token winner.
+
+| Variant | Correct | Abstained | Wrong | Mean tool calls | Mean tokens (input+output) | Mean seconds | Total cost for 10 runs (API-equivalent estimate) |
+|---|---|---|---|---|---|---|---|
+| M0 no MCP (second run) | 1 | 9 | 0 | 1.7 | 746 | 8.2 | $0.73 |
+| M1 Postgres MCP Pro | 10 | 0 | 0 | 3.4 | 769 | 7.8 | $0.76 |
+| M2 eShop.Mcp | 10 | 0 | 0 | 6.8 | 881 | 13.1 | $0.94 |
