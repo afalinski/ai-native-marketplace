@@ -18,7 +18,9 @@ builder.Services.AddSingleton(sp => new ReadOnlyDb(
 builder.Services
     .AddMcpServer(options => options.ServerInfo = new() { Name = "eshop", Version = "1.0.0" })
     .WithHttpTransport()
-    .WithToolsFromAssembly();
+    .WithToolsFromAssembly()
+    .WithResourcesFromAssembly()
+    .WithPromptsFromAssembly();
 
 var app = builder.Build();
 

@@ -12,6 +12,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\docs\architecture\**\*.md" Link="architecture\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Resources\status-lifecycle.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\eShop.ServiceDefaults\eShop.ServiceDefaults.csproj" />
   </ItemGroup>
 
