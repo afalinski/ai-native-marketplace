@@ -126,6 +126,14 @@ public sealed class McpDatabaseFixture : IAsyncLifetime
         await transaction.CommitAsync();
     }
 
+    public async Task SeedAsync()
+    {
+        // The catalog seed references brands and types of the standard catalog, so load those first.
+        await SeedCatalogFromJsonAsync();
+        await RunSqlFileAsync(Path.Combine(AppContext.BaseDirectory, "seed-catalog.sql"), _catalogSuperCs);
+        await RunSqlFileAsync(Path.Combine(AppContext.BaseDirectory, "seed-ordering.sql"), SuperuserOrderingCs);
+    }
+
     private static async Task ExecuteAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string sql, params (string Name, object Value)[] parameters)
     {
         await using var command = new NpgsqlCommand(sql, connection, transaction);

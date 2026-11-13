@@ -1,0 +1,108 @@
+[
+  {
+    "id": "q01",
+    "question": "Which products in our catalog are out of stock right now?",
+    "expected": [
+      "Summit Alpine Gaiters"
+    ],
+    "match": "all",
+    "singleTool": true
+  },
+  {
+    "id": "q02",
+    "question": "How much does the Trail Guide Map cost?",
+    "expected": [
+      "(?<![0-9.,])14\\.50?(?![0-9])"
+    ],
+    "match": "all",
+    "singleTool": true,
+    "regex": true
+  },
+  {
+    "id": "q03",
+    "question": "A customer is asking about order 9007. What status is it in?",
+    "expected": [
+      "AwaitingValidation",
+      "Awaiting Validation"
+    ],
+    "match": "any",
+    "singleTool": true
+  },
+  {
+    "id": "q04",
+    "question": "Which orders have been stuck waiting for validation or stock confirmation for more than 2 hours?",
+    "expected": [
+      "9002",
+      "9006",
+      "9010",
+      "9014"
+    ],
+    "match": "all",
+    "singleTool": true
+  },
+  {
+    "id": "q05",
+    "question": "Please list all orders placed by Jane Fox.",
+    "expected": [
+      "9001",
+      "9002",
+      "9003",
+      "9004",
+      "9005"
+    ],
+    "match": "all",
+    "singleTool": true
+  },
+  {
+    "id": "q06",
+    "question": "How much money has Marcus Lee spent in total on orders that were not cancelled?",
+    "expected": [
+      "(?<![0-9.,])617\\.95(?![0-9])"
+    ],
+    "match": "all",
+    "singleTool": false,
+    "regex": true
+  },
+  {
+    "id": "q07",
+    "question": "Which orders that are still open (not shipped and not cancelled) contain a product that is currently out of stock?",
+    "expected": [
+      "9006",
+      "9014"
+    ],
+    "match": "all",
+    "singleTool": false
+  },
+  {
+    "id": "q08",
+    "question": "Which payment card types can customers use in our shop?",
+    "expected": [
+      "Amex",
+      "Visa",
+      "MasterCard"
+    ],
+    "match": "all",
+    "singleTool": false
+  },
+  {
+    "id": "q09",
+    "question": "Is there an order where a discount was applied to an item? Which order, and how large was the discount?",
+    "expected": [
+      "9015",
+      "(?<![0-9.,])30(\\.00)?(?![0-9])"
+    ],
+    "match": "all",
+    "singleTool": false,
+    "regex": true
+  },
+  {
+    "id": "q10",
+    "question": "What is the total value of order 9002?",
+    "expected": [
+      "(?<![0-9.,])249\\.97(?![0-9])"
+    ],
+    "match": "all",
+    "singleTool": true,
+    "regex": true
+  }
+]

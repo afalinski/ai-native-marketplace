@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <Content Include="..\..\eval\mcp\create-readonly-role.sql" Link="create-readonly-role.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\eval\mcp\seed-catalog.sql" Link="seed-catalog.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\eval\mcp\seed-ordering.sql" Link="seed-ordering.sql" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\src\Catalog.API\Setup\catalog.json" Link="catalog.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
