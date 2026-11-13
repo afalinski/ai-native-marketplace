@@ -4,7 +4,8 @@ using Npgsql;
 
 namespace eShop.Mcp.FunctionalTests;
 
-public class ReadOnlyGuardTests : IClassFixture<McpDatabaseFixture>
+[Collection(McpDatabaseCollection.Name)]
+public class ReadOnlyGuardTests
 {
     private readonly McpDatabaseFixture _fixture;
 

@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Content Include="..\..\eval\mcp\create-readonly-role.sql" Link="create-readonly-role.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\Catalog.API\Setup\catalog.json" Link="catalog.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

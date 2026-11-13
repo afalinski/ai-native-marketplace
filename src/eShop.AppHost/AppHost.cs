@@ -6,7 +6,6 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddForwardedHeaders();
 builder.AddAzureContainerAppEnvironment("aca");
 
-var redis = builder.AddRedis("redis");
 var rabbitMq = builder.AddRabbitMQ("eventbus")
     .WithLifetime(ContainerLifetime.Persistent);
 var postgres = builder.AddPostgres("postgres")
@@ -17,7 +16,6 @@ var postgres = builder.AddPostgres("postgres")
 var catalogDb = postgres.AddDatabase("catalogdb");
 var identityDb = postgres.AddDatabase("identitydb");
 var orderDb = postgres.AddDatabase("orderingdb");
-var webhooksDb = postgres.AddDatabase("webhooksdb");
 
 var launchProfileName = ShouldUseHttpForEndpoints() ? "http" : "https";
 
@@ -29,12 +27,6 @@ var identityApi = builder.AddDotnetProject("identity-api", "../Identity.API", o 
 
 var identityEndpoint = identityApi.GetEndpoint(launchProfileName);
     
-var basketApi = builder.AddDotnetProject("basket-api", "../Basket.API")
-    .WithReference(redis)
-    .WithReference(rabbitMq).WaitFor(rabbitMq)
-    .WithEnvironment("Identity__Url", identityEndpoint);
-redis.WithParentRelationship(basketApi);
-
 var catalogApi = builder.AddDotnetProject("catalog-api", "../Catalog.API")
     .WithReference(rabbitMq).WaitFor(rabbitMq)
     .WithReference(catalogDb);
@@ -44,6 +36,33 @@ var orderingApi = builder.AddDotnetProject("ordering-api", "../Ordering.API")
     .WithReference(orderDb).WaitFor(orderDb)
     .WithHttpHealthCheck("/health")
     .WithEnvironment("Identity__Url", identityEndpoint);
+
+var mcpPassword = builder.AddParameter("mcp-readonly-password", new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+
+builder.AddDotnetProject("eshop-mcp", "../eShop.Mcp")
+    .WithHttpEndpoint(port: 5230)
+    .WithEnvironment("ConnectionStrings__catalogdb-readonly", ReadOnlyConnectionString(postgres, mcpPassword, "catalogdb"))
+    .WithEnvironment("ConnectionStrings__orderingdb-readonly", ReadOnlyConnectionString(postgres, mcpPassword, "orderingdb"))
+    .WithEnvironment("Identity__Url", identityEndpoint)
+    .WithReference(orderingApi)
+    .WaitFor(catalogApi)
+    .WaitFor(orderingApi);
+
+// Set McpEval=true to start only what the eShop.Mcp evaluation needs.
+if (bool.TryParse(builder.Configuration["McpEval"], out var mcpEval) && mcpEval)
+{
+    builder.Build().Run();
+    return;
+}
+
+var redis = builder.AddRedis("redis");
+var webhooksDb = postgres.AddDatabase("webhooksdb");
+
+var basketApi = builder.AddDotnetProject("basket-api", "../Basket.API")
+    .WithReference(redis)
+    .WithReference(rabbitMq).WaitFor(rabbitMq)
+    .WithEnvironment("Identity__Url", identityEndpoint);
+redis.WithParentRelationship(basketApi);
 
 builder.AddDotnetProject("order-processor", "../OrderProcessor")
     .WithReference(rabbitMq).WaitFor(rabbitMq)
@@ -114,4 +133,14 @@ static bool ShouldUseHttpForEndpoints()
 
     // Attempt to parse the environment variable value; return true if it's exactly "1".
     return int.TryParse(envValue, out int result) && result == 1;
+}
+
+static ReferenceExpression ReadOnlyConnectionString(
+    IResourceBuilder<PostgresServerResource> postgres,
+    IResourceBuilder<ParameterResource> password,
+    string database)
+{
+    var endpoint = postgres.Resource.PrimaryEndpoint;
+    return ReferenceExpression.Create(
+        $"Host={endpoint.Property(EndpointProperty.Host)};Port={endpoint.Property(EndpointProperty.Port)};Username=mcp_readonly;Password={password.Resource};Database={database}");
 }

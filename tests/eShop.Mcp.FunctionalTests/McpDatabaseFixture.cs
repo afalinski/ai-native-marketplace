@@ -7,6 +7,9 @@ using CatalogApi::eShop.Catalog.API.Infrastructure;
 
 using eShop.Ordering.Infrastructure;
 
+using System.Linq;
+using System.Text.Json;
+
 using Microsoft.EntityFrameworkCore;
 
 using Npgsql;
@@ -20,6 +23,7 @@ public sealed class McpDatabaseFixture : IAsyncLifetime
     private readonly DistributedApplication _app;
     private readonly IResourceBuilder<PostgresServerResource> _postgres;
     private string _serverCs = default!;
+    private string _catalogSuperCs = default!;
 
     public string ReadOnlyCatalogCs { get; private set; } = default!;
     public string ReadOnlyOrderingCs { get; private set; } = default!;
@@ -45,6 +49,7 @@ public sealed class McpDatabaseFixture : IAsyncLifetime
         await CreateDatabaseAsync("orderingdb");
 
         var catalogSuper = WithDatabase(_serverCs, "catalogdb");
+        _catalogSuperCs = catalogSuper;
         SuperuserOrderingCs = WithDatabase(_serverCs, "orderingdb");
 
         var catalogOptions = new DbContextOptionsBuilder<CatalogContext>()
@@ -75,6 +80,64 @@ public sealed class McpDatabaseFixture : IAsyncLifetime
         ReadOnlyCatalogCs = AsReadOnly(catalogSuper);
         ReadOnlyOrderingCs = AsReadOnly(SuperuserOrderingCs);
     }
+
+    public async Task SeedCatalogFromJsonAsync()
+    {
+        var json = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "catalog.json"));
+        var items = JsonSerializer.Deserialize<List<SeedItem>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+        await using var connection = new NpgsqlConnection(_catalogSuperCs);
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        await ExecuteAsync(connection, transaction, "TRUNCATE \"Catalog\", \"CatalogBrand\", \"CatalogType\"");
+
+        var brandIds = new Dictionary<string, int>();
+        foreach (var brand in items.Select(i => i.Brand).Distinct())
+        {
+            brandIds[brand] = brandIds.Count + 1;
+            await ExecuteAsync(connection, transaction, "INSERT INTO \"CatalogBrand\" (\"Id\", \"Brand\") VALUES (@id, @name)", ("id", brandIds[brand]), ("name", brand));
+        }
+
+        var typeIds = new Dictionary<string, int>();
+        foreach (var type in items.Select(i => i.Type).Distinct())
+        {
+            typeIds[type] = typeIds.Count + 1;
+            await ExecuteAsync(connection, transaction, "INSERT INTO \"CatalogType\" (\"Id\", \"Type\") VALUES (@id, @name)", ("id", typeIds[type]), ("name", type));
+        }
+
+        foreach (var item in items)
+        {
+            await ExecuteAsync(
+                connection,
+                transaction,
+                """
+                INSERT INTO "Catalog" ("Id", "Name", "Description", "Price", "CatalogTypeId", "CatalogBrandId", "AvailableStock", "RestockThreshold", "MaxStockThreshold", "OnReorder")
+                VALUES (@id, @name, @description, @price, @typeId, @brandId, 100, 10, 200, false)
+                """,
+                ("id", item.Id),
+                ("name", item.Name),
+                ("description", item.Description),
+                ("price", item.Price),
+                ("typeId", typeIds[item.Type]),
+                ("brandId", brandIds[item.Brand]));
+        }
+
+        await transaction.CommitAsync();
+    }
+
+    private static async Task ExecuteAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string sql, params (string Name, object Value)[] parameters)
+    {
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        foreach (var (name, value) in parameters)
+        {
+            command.Parameters.AddWithValue(name, value);
+        }
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private sealed record SeedItem(int Id, string Type, string Brand, string Name, string Description, decimal Price);
 
     public Task RunSqlFileAsync(string path)
     {
