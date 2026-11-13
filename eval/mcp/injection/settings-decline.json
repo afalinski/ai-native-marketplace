@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Elicitation": [
+      {
+        "matcher": "eshop",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh",
+            "args": ["-NoProfile", "-File", "eval/mcp/injection/hook-decline-log.ps1"]
+          }
+        ]
+      }
+    ]
+  }
+}
