@@ -16,8 +16,10 @@ const nowIso = () => new Date().toISOString();
 
 // Files named in plan.md as src/<Project>/... paths (a simple regex; used for the Docker check before round 1).
 export function planFiles(planText) {
-  return [...new Set([...planText.matchAll(/src\/[A-Za-z0-9_.-]+\//g)].map((m) => m[0] + "x"))];
+  return [...new Set([...planText.replace(/\\/g, "/").matchAll(/src\/[A-Za-z0-9_.-]+\//g)].map((m) => m[0] + "x"))];
 }
+
+class EnvironmentError extends Error {}
 
 function readSpecRun(workDir) {
   const p = path.join(workDir, "spec-run.json");
@@ -54,6 +56,14 @@ export async function build({ n, flags, repo, deps, log }) {
     return 1;
   }
   const { git, tests, gh } = deps;
+  if (flags.pr) {
+    // Fail before spending any model budget: the PR base must already be on origin.
+    const prBase = git.currentBranch(repo);
+    if (!git.remoteBranchExists(repo, prBase)) {
+      log(`base branch "${prBase}" does not exist on origin. Push it first (git push -u origin ${prBase}), then rerun with --pr.`);
+      return 1;
+    }
+  }
   const startedAt = nowIso();
 
   if (git.worktreeExists(repo, wt, branch) || git.branchExists(repo, branch) || existsSync(wt)) {
@@ -72,8 +82,13 @@ export async function build({ n, flags, repo, deps, log }) {
   }
 
   const hashPath = path.join(workDir, "spec.sha256");
-  if (existsSync(hashPath) && readFileSync(hashPath, "utf8").trim() !== sha256(readFileSync(specPath, "utf8"))) {
-    addIntervention(workDir, "spec-edited", "spec.md differs from the analyst's version (human edit)");
+  const specHash = sha256(readFileSync(specPath, "utf8"));
+  if (existsSync(hashPath) && readFileSync(hashPath, "utf8").trim() !== specHash) {
+    // Logged once per distinct edited version: a --fresh rerun with the same spec.md adds nothing.
+    const note = `spec.md differs from the analyst's version (human edit), sha256 ${specHash}`;
+    if (!readInterventions(workDir).some((i) => i.kind === "spec-edited" && i.note === note)) {
+      addIntervention(workDir, "spec-edited", note);
+    }
   }
 
   const baseBranch = git.currentBranch(repo);
@@ -82,6 +97,7 @@ export async function build({ n, flags, repo, deps, log }) {
 
   const roles = [...readSpecRun(workDir)];
   const callRole = async (role, round, opts, tag = `${role}-${round}`) => {
+    const t0 = Date.now();
     const r = await deps.claude({
       role,
       cwd: wt,
@@ -91,9 +107,10 @@ export async function build({ n, flags, repo, deps, log }) {
       ...ROLE_LIMITS[role],
       ...opts,
     });
-    return r;
+    return { ...r, wallMs: Date.now() - t0 };
   };
   const record = (role, round, r, cost = r.costUsd) => roles.push(roleEntry(role, round, { ...r, costUsd: cost }));
+  const testTimes = [];
 
   // planner
   const planPath = path.join(workDir, "plan.md");
@@ -144,9 +161,11 @@ ${fix}`;
       allowedTools: IMPLEMENTER_ALLOWED_TOOLS,
     });
     if (r.sessionId) implSession = r.sessionId;
-    // A failed run or a missing cost must not corrupt the cumulative baseline.
-    if (r.ok && r.costUsd) {
-      record("implementer", k, r, costDelta(prevCumulative, r.costUsd));
+    // Cost is counted whenever the run reported one (an error_max_turns run still spent money).
+    // The delta applies only to the same resumed session; any other session starts from 0.
+    if (r.costUsd > 0) {
+      const sameSession = resumeId && r.sessionId === resumeId;
+      record("implementer", k, r, costDelta(sameSession ? prevCumulative : null, r.costUsd));
       prevCumulative = r.costUsd;
     } else {
       record("implementer", k, r, 0);
@@ -159,12 +178,12 @@ ${fix}`;
     git.restoreLineEndingOnly(wt);
     const files = git.changedFiles(wt);
     const mapped = mapTestProjects(files, wt);
-    let res;
     if (mapped.functional.length && !tests.dockerAvailable()) {
-      res = { green: false, buildOk: false, ran: [], noTests: false, log: "Docker not running: functional tests are mapped but Docker is down.\n" };
-    } else {
-      res = await tests.runTests(wt, files);
+      throw new EnvironmentError(`Docker is not running, but functional tests are needed (${mapped.functional.join(", ")}). Environment problem, not a round. Start Docker and rerun with --fresh.`);
     }
+    const t0 = Date.now();
+    const res = await tests.runTests(wt, files);
+    testTimes.push({ round: k, wallMs: Date.now() - t0 });
     git.restoreLineEndingOnly(wt);
     write(path.join(rd, "diff.patch"), git.diffPatch(wt, base));
     write(path.join(rd, "tests.txt"), res.log);
@@ -202,7 +221,15 @@ ${fix}`;
     return r;
   };
 
-  const result = await runRounds({ implement, test, review });
+  let result;
+  try {
+    result = await runRounds({ implement, test, review });
+  } catch (e) {
+    if (!(e instanceof EnvironmentError)) throw e;
+    addIntervention(workDir, "environment", e.message);
+    log(e.message);
+    return 1;
+  }
   const diffStats = () => git.numstat(wt, base);
   const interventions = () => readInterventions(workDir);
   const sum = () => roles.reduce((a, r) => a + (r.costUsd ?? 0), 0);
@@ -219,6 +246,7 @@ ${fix}`;
       outcome,
       rounds: result.rounds,
       roles,
+      tests: testTimes,
       totalCostUsd: sum(),
       costLabel: "client-side estimate",
       diff: extra.diff ?? diffStats(),

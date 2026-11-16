@@ -42,3 +42,15 @@ test("runClaude: normal success through the fake", () =>
     assert.equal(r.sessionId, "s1");
     assert.equal(r.costUsd, 0.5);
   }));
+
+test("runClaude: child env has PIPELINE_ROLE and none of the parent's Claude Code variables", () =>
+  withFake("process.stdout.write(JSON.stringify({subtype:'success',result:JSON.stringify({role:process.env.PIPELINE_ROLE,proj:process.env.CLAUDE_PROJECT_DIR??null,cc:process.env.CLAUDECODE??null,ep:process.env.CLAUDE_CODE_ENTRYPOINT??null,work:process.env.PIPELINE_WORK_DIR})}));", async (dir) => {
+    const saved = { ...process.env };
+    process.env.CLAUDE_PROJECT_DIR = "/parent"; process.env.CLAUDECODE = "1"; process.env.CLAUDE_CODE_ENTRYPOINT = "cli";
+    try {
+      const r = await runClaude({ prompt: "x", cwd: dir, workDir: dir, role: "reviewer" });
+      assert.deepEqual(JSON.parse(r.result), { role: "reviewer", proj: null, cc: null, ep: null, work: path.resolve(dir) });
+    } finally {
+      for (const k of ["CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"]) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
+    }
+  }));

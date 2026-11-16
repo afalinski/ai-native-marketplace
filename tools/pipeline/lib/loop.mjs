@@ -51,7 +51,7 @@ export async function runRounds({ implement, test, review, maxRounds = MAX_ROUND
         outcome: "success",
         rounds: k,
         history,
-        nonBlocking: verdict.findings.filter((f) => f.severity !== "blocking"),
+        nonBlocking: (verdict.findings ?? []).filter((f) => f.severity !== "blocking"),
         consistency: history.map((h) => h.evaluation.consistent),
       };
     }

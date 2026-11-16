@@ -82,7 +82,9 @@ export function runClaude({ prompt, cwd, workDir, logPath, timeoutMs, ...argsOpt
   const limitMs = timeoutMs ?? ROLE_TIMEOUT_MS[argsOpts.role];
   const { command, prefixArgs } = resolveClaudeCommand();
   const args = [...prefixArgs, ...buildClaudeArgs(argsOpts)];
-  const env = { ...process.env, PIPELINE_WORK_DIR: path.resolve(workDir) };
+  const env = { ...process.env, PIPELINE_WORK_DIR: path.resolve(workDir), PIPELINE_ROLE: argsOpts.role };
+  // Inherited from a parent Claude Code session: the child must derive its own project dir from its cwd.
+  for (const k of ["CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"]) delete env[k];
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, env, shell: false, stdio: ["pipe", "pipe", "pipe"] });
     const out = [];
