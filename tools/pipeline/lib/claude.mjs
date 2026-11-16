@@ -10,6 +10,15 @@ export const ROLE_LIMITS = {
   "docs-writer": { maxTurns: 15, maxBudgetUsd: 1 },
 };
 
+// Wall-clock limit per role run (ms). runClaude kills the child and returns subtype "timeout".
+export const ROLE_TIMEOUT_MS = {
+  analyst: 20 * 60_000,
+  planner: 20 * 60_000,
+  implementer: 45 * 60_000,
+  reviewer: 15 * 60_000,
+  "docs-writer": 10 * 60_000,
+};
+
 export const IMPLEMENTER_ALLOWED_TOOLS =
   "Bash(dotnet build *),Bash(dotnet test *),Bash(git status *),Bash(git diff *)";
 
@@ -48,7 +57,11 @@ export function parseShim(text, shimDir) {
 }
 
 export function resolveClaudeCommand() {
-  if (process.env.PIPELINE_CLAUDE_BIN) return { command: process.env.PIPELINE_CLAUDE_BIN, prefixArgs: [] };
+  // PIPELINE_CLAUDE_PREFIX_ARGS (JSON array) is for tests: PIPELINE_CLAUDE_BIN=node + ["fake.mjs"].
+  if (process.env.PIPELINE_CLAUDE_BIN) {
+    const prefixArgs = process.env.PIPELINE_CLAUDE_PREFIX_ARGS ? JSON.parse(process.env.PIPELINE_CLAUDE_PREFIX_ARGS) : [];
+    return { command: process.env.PIPELINE_CLAUDE_BIN, prefixArgs };
+  }
   if (process.platform !== "win32") return { command: "claude", prefixArgs: [] };
   for (const dir of (process.env.PATH ?? "").split(";").filter(Boolean)) {
     const shim = path.join(dir, "claude.cmd");
@@ -57,7 +70,16 @@ export function resolveClaudeCommand() {
   throw new Error("claude.cmd not found on PATH (set PIPELINE_CLAUDE_BIN)");
 }
 
-export function runClaude({ prompt, cwd, workDir, logPath, ...argsOpts }) {
+function killTree(child) {
+  if (process.platform === "win32") {
+    spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
+  } else {
+    child.kill("SIGKILL");
+  }
+}
+
+export function runClaude({ prompt, cwd, workDir, logPath, timeoutMs, ...argsOpts }) {
+  const limitMs = timeoutMs ?? ROLE_TIMEOUT_MS[argsOpts.role];
   const { command, prefixArgs } = resolveClaudeCommand();
   const args = [...prefixArgs, ...buildClaudeArgs(argsOpts)];
   const env = { ...process.env, PIPELINE_WORK_DIR: path.resolve(workDir) };
@@ -67,17 +89,37 @@ export function runClaude({ prompt, cwd, workDir, logPath, ...argsOpts }) {
     const err = [];
     child.stdout.on("data", (d) => out.push(d));
     child.stderr.on("data", (d) => err.push(d));
-    child.on("error", reject);
+    let timedOut = false;
+    const timer = limitMs
+      ? setTimeout(() => {
+          timedOut = true;
+          killTree(child);
+        }, limitMs)
+      : null;
+    child.on("error", (e) => {
+      clearTimeout(timer);
+      reject(e);
+    });
     child.on("close", (code) => {
+      clearTimeout(timer);
       const stdout = Buffer.concat(out).toString("utf8");
       if (logPath) {
         mkdirSync(path.dirname(logPath), { recursive: true });
         writeFileSync(logPath, stdout);
       }
+      const fail = (subtype, result) =>
+        resolve({ ok: false, subtype, sessionId: null, costUsd: 0, turns: 0, durationMs: 0, structured: null, result });
+      if (timedOut) {
+        fail("timeout", `killed after ${limitMs} ms`);
+        return;
+      }
       let j;
       try {
         j = JSON.parse(stdout);
       } catch {
+        j = null;
+      }
+      if (j === null || typeof j !== "object" || Array.isArray(j)) {
         resolve({
           ok: false, subtype: "invalid_output", sessionId: null, costUsd: 0, turns: 0, durationMs: 0,
           structured: null, result: `exit ${code}; stderr: ${Buffer.concat(err).toString("utf8").slice(0, 500)}`,
