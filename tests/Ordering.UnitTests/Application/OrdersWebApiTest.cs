@@ -1,5 +1,6 @@
 ﻿namespace eShop.Ordering.UnitTests.Application;
 
+using System.Globalization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using eShop.Ordering.API.Application.Queries;
 using Order = eShop.Ordering.API.Application.Queries.Order;
@@ -178,5 +179,118 @@ public class OrdersWebApiTest
 
         var problem = Assert.IsInstanceOfType<ProblemHttpResult>(result.Result);
         Assert.AreEqual(500, problem.StatusCode);
+    }
+
+    private const string TestUserId = "user-for-log-test";
+    private const string TestCardNumber = "4111111111111111";
+    private const string TestCardSecurityNumber = "987";
+
+    private static CreateOrderRequest NewCreateOrderRequest()
+    {
+        return new CreateOrderRequest(
+            TestUserId,
+            "user-name",
+            "city",
+            "street",
+            "state",
+            "country",
+            "zip",
+            TestCardNumber,
+            "Card Holder",
+            new DateTime(2030, 1, 1),
+            TestCardSecurityNumber,
+            1,
+            "buyer",
+            new List<BasketItem>());
+    }
+
+    [TestMethod]
+    public async Task Create_order_without_requestId_does_not_log_card_data()
+    {
+        // Arrange
+        var capturingLogger = new CapturingLogger();
+        var services = new OrderServices(_mediatorMock, _orderQueriesMock, _identityServiceMock, capturingLogger);
+
+        // Act
+        await OrdersApi.CreateOrderAsync(Guid.Empty, NewCreateOrderRequest(), services);
+
+        // Assert
+        Assert.IsNotEmpty(capturingLogger.Entries);
+        foreach (var entry in capturingLogger.Entries)
+        {
+            var texts = new List<string> { entry.Message };
+            foreach (var pair in entry.State)
+            {
+                texts.Add(pair.Key);
+                texts.Add(Convert.ToString(pair.Value, CultureInfo.InvariantCulture));
+            }
+
+            foreach (var text in texts)
+            {
+                Assert.DoesNotContain(TestCardNumber, text);
+                Assert.DoesNotContain(TestCardSecurityNumber, text);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task Create_order_without_requestId_logs_one_warning_with_userId()
+    {
+        // Arrange
+        var capturingLogger = new CapturingLogger();
+        var services = new OrderServices(_mediatorMock, _orderQueriesMock, _identityServiceMock, capturingLogger);
+
+        // Act
+        await OrdersApi.CreateOrderAsync(Guid.Empty, NewCreateOrderRequest(), services);
+
+        // Assert
+        var warnings = capturingLogger.Entries.Where(e => e.Level == LogLevel.Warning).ToList();
+        Assert.HasCount(1, warnings);
+        Assert.Contains(TestUserId, warnings[0].Message);
+    }
+
+    [TestMethod]
+    public async Task Create_order_without_requestId_returns_bad_request_and_sends_no_command()
+    {
+        // Arrange
+        var capturingLogger = new CapturingLogger();
+        var services = new OrderServices(_mediatorMock, _orderQueriesMock, _identityServiceMock, capturingLogger);
+
+        // Act
+        var result = await OrdersApi.CreateOrderAsync(Guid.Empty, NewCreateOrderRequest(), services);
+
+        // Assert
+        var badRequest = Assert.IsInstanceOfType<BadRequest<string>>(result.Result);
+        Assert.AreEqual("RequestId is missing.", badRequest.Value);
+        Assert.AreEqual(0, _mediatorMock.ReceivedCalls().Count());
+    }
+
+    private sealed class CapturingLogger : ILogger<OrderServices>
+    {
+        public List<(LogLevel Level, string Message, List<KeyValuePair<string, object>> State)> Entries { get; } = new();
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        {
+            var pairs = new List<KeyValuePair<string, object>>();
+            if (state is IEnumerable<KeyValuePair<string, object>> kvps)
+            {
+                pairs.AddRange(kvps);
+            }
+
+            Entries.Add((logLevel, formatter(state, exception), pairs));
+        }
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+
+        private sealed class NullScope : IDisposable
+        {
+            public static readonly NullScope Instance = new();
+
+            public void Dispose()
+            {
+            }
+        }
     }
 }
