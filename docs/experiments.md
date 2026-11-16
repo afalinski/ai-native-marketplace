@@ -201,22 +201,30 @@ How it complements E9 and ADR-006: E9 limits what the agent can do on the machin
 
 ## E12 prelude: does `--resume` keep the role? (2026-11-16)
 
-Hypothesis: with `claude -p --resume <id> --agent <role>`, the role's tool limits survive the resume (a Bash request shows up in `permission_denials`), `total_cost_usd` is cumulative across the resumed runs, and a stop by `--max-turns` reports `subtype: error_max_turns`. Design choice A of stage 3 (one implementer session across rounds) depends on this.
+Hypothesis: with `claude -p --resume <id> --agent <role>`, the role's tool limits are still in force after the resume, `total_cost_usd` is cumulative across the resumed runs, and a stop by `--max-turns` reports `subtype: error_max_turns`. Design choice A of stage 3 (one implementer session across rounds) depends on this.
 
-What I did: `tools/pipeline/probe-resume.mjs`, three `claude -p --output-format json` runs from Node, prompts on stdin, a temporary agent `probe-readonly` (tools Read, Grep, Glob; model sonnet) passed with `--agents <json file in the OS temp dir>`. No `--bare`. Run 1: `--agent probe-readonly --max-turns 2`, "List the tools you have, then stop." Run 2: `--resume <run 1 id> --agent probe-readonly`, "Try to run the Bash command `git status`." Run 3: `--resume` again with `--max-turns 1`, a task that needs several Read calls.
+What I did: `tools/pipeline/probe-resume.mjs`, five `claude -p` runs from Node (repo root), prompts on stdin, a temporary agent `probe-readonly` (tools Read, Grep, Glob; model sonnet) passed with `--agents <json file in the OS temp dir>`. No `--bare`. All runs resume one session. `--agent probe-readonly` and `--agents` were re-passed in runs 2, 3 and 4, which is how the orchestrator will call it.
+- Run 1: `--agent probe-readonly --max-turns 2`, "List the tools you have, then stop."
+- Run 2: `--resume <id>`, "Try to run the Bash command `git status`."
+- Run 3: `--resume <id>`, `--max-turns 1`, a task that needs several Read calls.
+- Run 4: `--resume <id>` with `--agent`/`--agents` re-passed, `--output-format stream-json --verbose`; I read the `tools` array of the `system/init` event (the tools the model is offered).
+- Run 5: `--resume <id>` with no `--agent` and no `--agents`, same stream-json read.
 
-Result:
+Result (costs are `total_cost_usd`, a client-side estimate; the table is from the final re-run, the first run gave the same pattern with 0.0348, 0.0383, 0.0420):
 
-| Run | `session_id` | `total_cost_usd` | `num_turns` | `subtype` | `permission_denials` |
+| Run | `total_cost_usd` | `num_turns` | `subtype` | `permission_denials` | init `tools` |
 |---|---|---|---|---|---|
-| 1 | 747132e1-8cda-4112-a8fe-c08be8e37adb | 0.034769 | 1 | success | [] |
-| 2 | same | 0.038347 | 1 | success | [] |
-| 3 | same | 0.042015 | 2 | error_max_turns | [] |
+| 1 | 0.015684 | 1 | success | [] | not read (the answer listed Read, Grep, Glob) |
+| 2 | 0.018774 | 1 | success | [] | not read |
+| 3 | 0.022235 | 2 | error_max_turns | [] | not read |
+| 4 (agent re-passed) | 0.050938 | 1 | success | [] | `["Read","Grep","Glob"]` |
+| 5 (agent not re-passed) | 0.254032 | 1 | success | [] | full default set: Bash, Edit, Write, PowerShell, WebFetch, all MCP tools, about 110 entries |
 
-- Run 1 listed Read, Grep, Glob. Run 2 answered that Bash is not in its toolset and did not try it. So the tool limit survived the resume, but `permission_denials` stayed empty: a tool that is not in the toolset is not offered, so there is nothing to deny. The literal expectation "Bash in `permission_denials`" did not hold; the intent (the role survived) did.
-- `session_id` is the same after `--resume`. `total_cost_usd` grew each run (0.0348, 0.0383, 0.0420), the steps are small, so it looks cumulative, not per-run (a per-run value of run 3 would not be above run 2 by the cost of one more turn plus a tool call at this size). Not proven with a large gap; the orchestrator should still take differences, as the design says.
-- `--max-turns 1` applies to the resumed run: run 3 stopped with `error_max_turns` and an empty `result`. `num_turns` is 2 there (the turn that hit the limit is counted), so do not read `num_turns <= max` as a rule. `--max-budget-usd` was not probed.
-- Hooks after resume were not probed (the probe agent had no hook to trigger).
-- Spawn form on this Windows host: `spawnSync("claude", args, { shell: true, input: prompt, encoding: "utf8" })`. Plain `"claude"` and `"claude.exe"` give ENOENT, `"claude.cmd"` without a shell gives EINVAL. With `shell: true` quote any path argument that may contain spaces. The `--agents` flag accepts a path to a JSON file.
+- Enforcement evidence is run 4: after `--resume` with `--agent` re-passed, the init event offers only Read, Grep, Glob, so Bash, Edit and Write are absent. Run 2's refusal to run Bash is weaker evidence: the model may have answered from the resumed history, and no forbidden call was attempted and blocked. `permission_denials` stayed empty in every run, so it cannot be used to detect this.
+- Run 5 shows the role does not persist by itself: without `--agent` on the resume, the session gets the full toolset (and costs far more, since the tool definitions are large). The orchestrator must re-pass `--agent` on every `--resume`.
+- `session_id` is the same after `--resume`. `total_cost_usd` rose each time. Run 2 added 0.0031 (first run: 0.0036) on top of run 1's 0.0157 (0.0348), about the cost of one short turn, which supports a cumulative total over a per-run value. The jump in runs 4 and 5 is mixed up with the different toolsets and cache state, so it is not clean evidence either way. The orchestrator should still take differences, as the design says.
+- `--max-turns 1` applied to the resumed run 3: `error_max_turns`, empty `result`, `num_turns` 2 (the stopping turn is counted), and the process exit status is 1 although it prints the result JSON. Do not treat a nonzero exit as "no output".
+- Not probed: hooks after resume (the probe agent had none), `--max-budget-usd` after resume.
+- Spawn form on this Windows host: `spawnSync("claude", args, { shell: true, input: prompt, encoding: "utf8" })`. Plain `"claude"` and `"claude.exe"` give ENOENT, `"claude.cmd"` without a shell gives EINVAL. With `shell: true` quote path arguments. `--agents` accepted a path to a JSON file.
 
-Conclusion: design choice A stands for tool limits and for `--max-turns`; cost must be handled as a session total (difference per round). Do not use `permission_denials` to detect that a role kept its limits; check the tool list or the absence of the tool call. Hooks and `--max-budget-usd` under `--resume` are still unchecked.
+Conclusion: when `--agent` is re-passed on `--resume`, the resumed session is offered only the role's tools (run 4), and `--max-turns` applies (run 3). The role is not kept if `--agent` is left out (run 5). Cost behaves like a session total. The design is not changed: choice A stands, with the rule "always re-pass `--agent` on `--resume`". Hooks and `--max-budget-usd` under `--resume` are still unchecked.
