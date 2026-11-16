@@ -7,6 +7,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
+// Pipeline roles other than the implementer (reviewer, docs-writer, ...) must not build.
+if (process.env.PIPELINE_ROLE && process.env.PIPELINE_ROLE !== "implementer") process.exit(0);
+
 const input = JSON.parse(readFileSync(0, "utf8"));
 const root = process.env.CLAUDE_PROJECT_DIR || input.cwd;
 const codeFile = /\.(cs|razor|csproj|props|targets|slnx?|slnf)$/i;

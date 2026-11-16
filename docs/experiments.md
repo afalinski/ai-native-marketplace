@@ -198,3 +198,43 @@ Limits:
 Conclusion: you cannot reliably detect injection, so you limit what a hijacked agent can do. The model's refusal is not a control: it can change with the model, the wording or the context. The controls that do not depend on the model are these, but E11 did not exercise them: `cancel_order` needs a human yes that shows the exact order (id, buyer, items, total, status, reason), and the signed `requestState` ties the answer to that order (tested by `CancelOrderTests`, Task 7: decline, forged accept, answer for another order); and the M1 role has no write rights, so writes fail (tested by `ReadOnlyGuardTests`, Task 2, and checked in the E10 harness for a `DELETE`). In E11 these are by design, not tested.
 
 How it complements E9 and ADR-006: E9 limits what the agent can do on the machine (network tools, secret files). E11 limits what it can do through an MCP tool (an action needs a human yes, or does not exist). Both follow the same rule: do not rely on the model to say no.
+
+## E12 prelude: does `--resume` keep the role? (2026-11-16)
+
+Hypothesis: with `claude -p --resume <id> --agent <role>`, the role's tool limits are still in force after the resume, `total_cost_usd` is cumulative across the resumed runs, and a stop by `--max-turns` reports `subtype: error_max_turns`. Design choice A of stage 3 (one implementer session across rounds) depends on this.
+
+What I did: `tools/pipeline/probe-resume.mjs`, five `claude -p` runs from Node (repo root), prompts on stdin, a temporary agent `probe-readonly` (tools Read, Grep, Glob; model sonnet) passed with `--agents <json file in the OS temp dir>`. No `--bare`. All runs resume one session. `--agent probe-readonly` and `--agents` were re-passed in runs 2, 3 and 4, which is how the orchestrator will call it.
+- Run 1: `--agent probe-readonly --max-turns 2`, "List the tools you have, then stop."
+- Run 2: `--resume <id>`, "Try to run the Bash command `git status`."
+- Run 3: `--resume <id>`, `--max-turns 1`, a task that needs several Read calls.
+- Run 4: `--resume <id>` with `--agent`/`--agents` re-passed, `--output-format stream-json --verbose`; I read the `tools` array of the `system/init` event (the tools the model is offered).
+- Run 5: `--resume <id>` with no `--agent` and no `--agents`, same stream-json read.
+
+Result (costs are `total_cost_usd`, a client-side estimate; the table is from the final re-run, the first run gave the same pattern with 0.0348, 0.0383, 0.0420):
+
+| Run | `total_cost_usd` | `num_turns` | `subtype` | `permission_denials` | init `tools` |
+|---|---|---|---|---|---|
+| 1 | 0.015684 | 1 | success | [] | not read (the answer listed Read, Grep, Glob) |
+| 2 | 0.018774 | 1 | success | [] | not read |
+| 3 | 0.022235 | 2 | error_max_turns | [] | not read |
+| 4 (agent re-passed) | 0.050938 | 1 | success | [] | `["Read","Grep","Glob"]` |
+| 5 (agent not re-passed) | 0.254032 | 1 | success | [] | full default set: Bash, Edit, Write, PowerShell, WebFetch, all MCP tools, about 110 entries |
+
+- Enforcement evidence is run 4: after `--resume` with `--agent` re-passed, the init event offers only Read, Grep, Glob, so Bash, Edit and Write are absent. Run 2's refusal to run Bash is weaker evidence: the model may have answered from the resumed history, and no forbidden call was attempted and blocked. `permission_denials` stayed empty in every run, so it cannot be used to detect this.
+- Run 5 shows the role does not persist by itself: without `--agent` on the resume, the session gets the full toolset (and costs far more, since the tool definitions are large). The orchestrator must re-pass `--agent` on every `--resume`.
+- `session_id` is the same after `--resume`. `total_cost_usd` rose each time. Run 2 added 0.0031 (first run: 0.0036) on top of run 1's 0.0157 (0.0348), about the cost of one short turn, which supports a cumulative total over a per-run value. The jump in runs 4 and 5 is mixed up with the different toolsets and cache state, so it is not clean evidence either way. The orchestrator should still take differences, as the design says.
+- `--max-turns 1` applied to the resumed run 3: `error_max_turns`, empty `result`, `num_turns` 2 (the stopping turn is counted), and the process exit status is 1 although it prints the result JSON. Do not treat a nonzero exit as "no output".
+- Not probed: hooks after resume (the probe agent had none), `--max-budget-usd` after resume.
+- Spawn form on this Windows host: `spawnSync("claude", args, { shell: true, input: prompt, encoding: "utf8" })`. Plain `"claude"` and `"claude.exe"` give ENOENT, `"claude.cmd"` without a shell gives EINVAL. With `shell: true` quote path arguments. `--agents` accepted a path to a JSON file.
+
+Conclusion: when `--agent` is re-passed on `--resume`, the resumed session is offered only the role's tools (run 4), and `--max-turns` applies (run 3). The role is not kept if `--agent` is left out (run 5). Cost behaves like a session total. The design is not changed: choice A stands, with the rule "always re-pass `--agent` on `--resume`". Hooks and `--max-budget-usd` under `--resume` are still unchecked.
+
+## E12. Agent pipeline "issue → PR", calibration run (2026-11-16)
+- Hypothesis: a code orchestrator with fixed roles (analyst, planner, implementer, reviewer, docs-writer; tester = code) takes a 2–3 line issue to a reviewed, tested branch without a human between the two gates, and does not fall into the `{@Command}` trap.
+- What I did: built `tools/pipeline/` (ADR-008), opened issue #1, ran `spec 1`, approved the spec without edits, ran `build 1` without `--pr`.
+- Result: success in 1 round, 4.5 min and $0.99 in total (client-side estimate); 3 files changed, 0 human interventions, the trap avoided at every role. Observations:
+  - The analyst already scoped the trap out, so the reviewer was never tested on it. Its spec also repeats an earlier wrong claim (that `{@Command}` prints the CVV), which re-check row 8 had marked as unsupported.
+  - The docs-writer updated ARCH-07 correctly for the fix but kept that same unsupported claim. An agent propagates what the notes say.
+  - Catalog.FunctionalTests ran with no Catalog change: the build regenerated the Catalog OpenAPI files, and the tests are mapped before line endings are restored. That cost about 30 s; the fix is to restore before mapping.
+  - The reviewer's one non-blocking finding was valid: the last-4-digits case is not tested, and there is no `dotnet format` result.
+- Conclusion: the pipeline works end to end on a small task, and the stop, the round limit and the metrics live in code. One calibration run says little about the review loop: rounds 2–3 and escalation are so far exercised only by unit tests. Next: restore line endings before mapping tests; run a task where the trap is in scope; then the CI phase (`agent:spec` / `agent:build`).
