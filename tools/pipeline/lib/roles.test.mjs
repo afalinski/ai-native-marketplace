@@ -33,12 +33,17 @@ for (const [role, model] of Object.entries(models)) {
   });
 }
 
-test("reviewer tools are exactly Read, Grep, Glob", () => {
-  assert.deepEqual(readRole("reviewer").toolList, ["Read", "Grep", "Glob"]);
+test("reviewer tools are exactly Read, Grep, Glob, StructuredOutput", () => {
+  assert.deepEqual(readRole("reviewer").toolList, ["Read", "Grep", "Glob", "StructuredOutput"]);
 });
 
 test("reviewer and docs-writer have no Bash", () => {
   for (const r of ["reviewer", "docs-writer"]) assert.ok(!readRole(r).toolList.includes("Bash"), r);
+});
+
+test("reviewer has no Edit or Write", () => {
+  const t = readRole("reviewer").toolList;
+  assert.ok(!t.includes("Edit") && !t.includes("Write"));
 });
 
 test("analyst and planner: work-dir write guard", () => {
