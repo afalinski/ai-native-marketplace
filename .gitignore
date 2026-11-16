@@ -496,3 +496,6 @@ $RECYCLE.BIN/
 
 # MCP eval run output
 eval/mcp/results/
+
+# Agent pipeline work directory
+.work/

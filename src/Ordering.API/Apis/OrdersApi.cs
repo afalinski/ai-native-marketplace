@@ -131,7 +131,7 @@ public static class OrdersApi
 
         if (requestId == Guid.Empty)
         {
-            services.Logger.LogWarning("Invalid IntegrationEvent - RequestId is missing - {@IntegrationEvent}", request);
+            services.Logger.LogWarning("Invalid IntegrationEvent - RequestId is missing - UserId: {UserId}", request.UserId);
             return TypedResults.BadRequest("RequestId is missing.");
         }
 
