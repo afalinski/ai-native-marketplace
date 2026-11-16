@@ -8,7 +8,7 @@ import { main } from "../pipeline.mjs";
 const block = { severity: "blocking", file: "src/A.cs", line: 3, rule: "spec", summary: "still logs the CVV" };
 const review = (verdict, findings = []) => ({ verdict, summary: "s", findings });
 
-function setup({ reviews, testsGreen = () => true, planText = "Touch src/Ordering.API/Apis/OrdersApi.cs" }) {
+function setup({ implementer, branchExists = false, reviews, testsGreen = () => true, planText = "Touch src/Ordering.API/Apis/OrdersApi.cs" }) {
   const repo = mkdtempSync(path.join(os.tmpdir(), "pipe-e2e-"));
   const workDir = path.join(repo, ".work", "7");
   mkdirSync(workDir, { recursive: true });
@@ -28,6 +28,7 @@ function setup({ reviews, testsGreen = () => true, planText = "Touch src/Orderin
       }
       if (o.role === "implementer") {
         implSessions.n = (implSessions.n ?? 0) + 1;
+        if (implementer) return implementer(implSessions.n);
         return { ok: true, subtype: "success", sessionId: "impl-1", costUsd: implSessions.n * 1, turns: 4, durationMs: 10, structured: null, result: "" };
       }
       if (o.role === "reviewer") {
@@ -40,7 +41,7 @@ function setup({ reviews, testsGreen = () => true, planText = "Touch src/Orderin
       currentBranch: () => "stage3-pipeline",
       headSha: () => "abc123",
       worktreeExists: () => false,
-      branchExists: () => false,
+      branchExists: () => branchExists,
       createWorktree: (_r, wt) => mkdirSync(wt, { recursive: true }),
       removeWorktree: () => {},
       changedFiles: () => ["src/Ordering.API/Apis/OrdersApi.cs"],
@@ -106,4 +107,41 @@ test("build: missing spec.md -> exit 1", async () => {
   const s = setup({ reviews: [] });
   const code = await main({ argv: ["build", "8"], repo: s.repo, deps: s.deps, log: () => {} });
   assert.equal(code, 1);
+});
+
+const OK = { ok: true, subtype: "success", turns: 1, durationMs: 1, structured: null, result: "" };
+const rv = review("CHANGES_REQUESTED", [block]);
+
+test("build: a timed-out implementer round does not corrupt per-round costs", async () => {
+  const s = setup({
+    reviews: [rv, rv, review("APPROVE")],
+    implementer: (i) =>
+      i === 2 ? { ...OK, ok: false, subtype: "timeout", sessionId: null, costUsd: 0 } : { ...OK, sessionId: "impl-1", costUsd: i === 1 ? 1 : 1.5 },
+  });
+  assert.equal(await run(s, ["build", "7"]), 0);
+  const m = JSON.parse(readFileSync(path.join(s.workDir, "metrics.json"), "utf8"));
+  assert.deepEqual(m.roles.filter((r) => r.role === "implementer").map((r) => r.costUsd), [1, 0, 0.5]);
+  const impl = s.calls.filter((c) => c.role === "implementer");
+  assert.equal(impl[2].resumeId, "impl-1");
+});
+
+test("build: no session after a failed round 1 -> round 2 is a new session with the full task prompt", async () => {
+  const s = setup({
+    reviews: [rv, review("APPROVE")],
+    implementer: (i) => (i === 1 ? { ...OK, ok: false, subtype: "timeout", sessionId: null, costUsd: 0 } : { ...OK, sessionId: "impl-2", costUsd: 2 }),
+  });
+  assert.equal(await run(s, ["build", "7"]), 0);
+  const impl = s.calls.filter((c) => c.role === "implementer");
+  assert.equal(impl[1].resumeId, undefined);
+  assert.ok(impl[1].prompt.includes("implement the plan"));
+  assert.ok(impl[1].prompt.includes(path.join(s.workDir, "round-1", "review.md")));
+  const m = JSON.parse(readFileSync(path.join(s.workDir, "metrics.json"), "utf8"));
+  assert.deepEqual(m.roles.filter((r) => r.role === "implementer").map((r) => r.costUsd), [0, 2]);
+});
+
+test("build: an aborted build (branch exists, no --fresh) logs no intervention", async () => {
+  const s = setup({ reviews: [], branchExists: true });
+  writeFileSync(path.join(s.workDir, "spec.sha256"), "stale-hash");
+  assert.equal(await run(s, ["build", "7"]), 1);
+  assert.equal(existsSync(path.join(s.workDir, "interventions.json")), false);
 });

@@ -56,11 +56,6 @@ export async function build({ n, flags, repo, deps, log }) {
   const { git, tests, gh } = deps;
   const startedAt = nowIso();
 
-  const hashPath = path.join(workDir, "spec.sha256");
-  if (existsSync(hashPath) && readFileSync(hashPath, "utf8").trim() !== sha256(readFileSync(specPath, "utf8"))) {
-    addIntervention(workDir, "spec-edited", "spec.md differs from the analyst's version (human edit)");
-  }
-
   if (git.worktreeExists(repo, wt, branch) || git.branchExists(repo, branch) || existsSync(wt)) {
     if (!flags.fresh) {
       log(`worktree or branch ${branch} already exists (${wt}). Use --fresh to remove it and start over.`);
@@ -74,6 +69,11 @@ export async function build({ n, flags, repo, deps, log }) {
       }
     }
     addIntervention(workDir, "build-rerun", `removed ${branch} and its worktree (--fresh)`);
+  }
+
+  const hashPath = path.join(workDir, "spec.sha256");
+  if (existsSync(hashPath) && readFileSync(hashPath, "utf8").trim() !== sha256(readFileSync(specPath, "utf8"))) {
+    addIntervention(workDir, "spec-edited", "spec.md differs from the analyst's version (human edit)");
   }
 
   const baseBranch = git.currentBranch(repo);
@@ -125,21 +125,32 @@ export async function build({ n, flags, repo, deps, log }) {
 
   const implement = async (k, feedback) => {
     const rd = roundDir(k);
-    const prompt =
-      k === 1
-        ? `Work directory (absolute): ${workDir}\nRound 1. Read ${specPath} and ${planPath} and implement the plan in the current worktree.`
-        : `Work directory (absolute): ${workDir}\nRound ${k}. Fix the blocking findings in ${path.join(roundDir(k - 1), "review.md")} and the failing tests in ${path.join(roundDir(k - 1), "tests.txt")}. Do not widen the change.`;
+    const first = `Work directory (absolute): ${workDir}
+Round 1. Read ${specPath} and ${planPath} and implement the plan in the current worktree.`;
+    const fix = `Round ${k}. Fix the blocking findings in ${path.join(roundDir(k - 1), "review.md")} and the failing tests in ${path.join(roundDir(k - 1), "tests.txt")}. Do not widen the change.`;
+    // --resume only when a session exists; otherwise start a new session with the full task plus the feedback.
+    const resumeId = k > 1 ? implSession ?? undefined : undefined;
+    const prompt = k === 1 ? first : resumeId ? `Work directory (absolute): ${workDir}
+${fix}` : `${first}
+
+${fix}`;
     void feedback;
     mkdirSync(rd, { recursive: true });
+    if (!resumeId) prevCumulative = null; // a new session starts its cumulative cost from 0
     const r = await callRole("implementer", k, {
       prompt,
-      resumeId: k > 1 ? implSession ?? undefined : undefined,
+      resumeId,
       permissionMode: "acceptEdits",
       allowedTools: IMPLEMENTER_ALLOWED_TOOLS,
     });
-    if (k === 1) implSession = r.sessionId;
-    record("implementer", k, r, costDelta(prevCumulative, r.costUsd));
-    prevCumulative = r.costUsd;
+    if (r.sessionId) implSession = r.sessionId;
+    // A failed run or a missing cost must not corrupt the cumulative baseline.
+    if (r.ok && r.costUsd) {
+      record("implementer", k, r, costDelta(prevCumulative, r.costUsd));
+      prevCumulative = r.costUsd;
+    } else {
+      record("implementer", k, r, 0);
+    }
     return r;
   };
 
