@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Pipeline role. Reviews a diff against the spec and the CLAUDE.md rules and returns a JSON verdict. Read-only.
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, StructuredOutput
 model: sonnet
 ---
 
