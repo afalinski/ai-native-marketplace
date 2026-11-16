@@ -53,7 +53,12 @@ function globToRegExp(glob) {
 
 export function restoreLineEndingOnly(wt, globs = ["src/Catalog.API/Catalog.API*.json"]) {
   const res = globs.map(globToRegExp);
-  const modified = run(wt, ["diff", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
+  // Candidates come from `git status`, not `git diff --name-only`: under core.autocrlf=true an LF
+  // rewrite of a CRLF checkout is listed by status (and so by changedFiles) but not by diff (E12).
+  const modified = run(wt, ["status", "--porcelain", "-z", "--untracked-files=no"]).stdout
+    .split("\0").filter(Boolean)
+    .filter((e) => e[1] === "M" || e[0] === "M")
+    .map((e) => e.slice(3));
   const restored = [];
   for (const f of modified) {
     if (!res.some((re) => re.test(f))) continue;
