@@ -103,3 +103,19 @@ export function commitByName(wt, files, message) {
   run(wt, ["commit", "-m", message, "--", ...files]);
   return run(wt, ["rev-parse", "HEAD"]).stdout.trim();
 }
+
+export function currentBranch(repo) {
+  return run(repo, ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
+}
+
+export function headSha(repo) {
+  return run(repo, ["rev-parse", "HEAD"]).stdout.trim();
+}
+
+export function branchExists(repo, branch) {
+  return run(repo, ["branch", "--list", branch]).stdout.trim() !== "";
+}
+
+export function pushBranch(repo, branch) {
+  run(repo, ["push", "-u", "origin", branch]);
+}
