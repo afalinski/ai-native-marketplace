@@ -56,6 +56,22 @@ test("line-ending-only change to glob file is restored and absent from numstat",
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("with core.autocrlf=true, an LF rewrite of a CRLF checkout is restored and leaves changedFiles", () => {
+  // E12: the build rewrites Catalog OpenAPI files with LF. Under autocrlf=true `git diff --name-only`
+  // lists nothing, but `git status` still reports them modified, so they leaked into test mapping.
+  const dir = tempRepo();
+  try {
+    git(dir, "config", "core.autocrlf", "true");
+    const f = path.join(dir, "src/Catalog.API/Catalog.API.json");
+    rmSync(f);
+    git(dir, "checkout", "--", "src/Catalog.API/Catalog.API.json"); // CRLF checkout
+    writeFileSync(f, "a\nb\nc\n"); // what the build writes
+    assert.ok(changedFiles(dir).includes("src/Catalog.API/Catalog.API.json"), "precondition: status shows it");
+    assert.deepEqual(restoreLineEndingOnly(dir), ["src/Catalog.API/Catalog.API.json"]);
+    assert.ok(!changedFiles(dir).includes("src/Catalog.API/Catalog.API.json"));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("real change to glob file is not restored", () => {
   const dir = tempRepo();
   try {
