@@ -198,3 +198,25 @@ Limits:
 Conclusion: you cannot reliably detect injection, so you limit what a hijacked agent can do. The model's refusal is not a control: it can change with the model, the wording or the context. The controls that do not depend on the model are these, but E11 did not exercise them: `cancel_order` needs a human yes that shows the exact order (id, buyer, items, total, status, reason), and the signed `requestState` ties the answer to that order (tested by `CancelOrderTests`, Task 7: decline, forged accept, answer for another order); and the M1 role has no write rights, so writes fail (tested by `ReadOnlyGuardTests`, Task 2, and checked in the E10 harness for a `DELETE`). In E11 these are by design, not tested.
 
 How it complements E9 and ADR-006: E9 limits what the agent can do on the machine (network tools, secret files). E11 limits what it can do through an MCP tool (an action needs a human yes, or does not exist). Both follow the same rule: do not rely on the model to say no.
+
+## E12 prelude: does `--resume` keep the role? (2026-11-16)
+
+Hypothesis: with `claude -p --resume <id> --agent <role>`, the role's tool limits survive the resume (a Bash request shows up in `permission_denials`), `total_cost_usd` is cumulative across the resumed runs, and a stop by `--max-turns` reports `subtype: error_max_turns`. Design choice A of stage 3 (one implementer session across rounds) depends on this.
+
+What I did: `tools/pipeline/probe-resume.mjs`, three `claude -p --output-format json` runs from Node, prompts on stdin, a temporary agent `probe-readonly` (tools Read, Grep, Glob; model sonnet) passed with `--agents <json file in the OS temp dir>`. No `--bare`. Run 1: `--agent probe-readonly --max-turns 2`, "List the tools you have, then stop." Run 2: `--resume <run 1 id> --agent probe-readonly`, "Try to run the Bash command `git status`." Run 3: `--resume` again with `--max-turns 1`, a task that needs several Read calls.
+
+Result:
+
+| Run | `session_id` | `total_cost_usd` | `num_turns` | `subtype` | `permission_denials` |
+|---|---|---|---|---|---|
+| 1 | 747132e1-8cda-4112-a8fe-c08be8e37adb | 0.034769 | 1 | success | [] |
+| 2 | same | 0.038347 | 1 | success | [] |
+| 3 | same | 0.042015 | 2 | error_max_turns | [] |
+
+- Run 1 listed Read, Grep, Glob. Run 2 answered that Bash is not in its toolset and did not try it. So the tool limit survived the resume, but `permission_denials` stayed empty: a tool that is not in the toolset is not offered, so there is nothing to deny. The literal expectation "Bash in `permission_denials`" did not hold; the intent (the role survived) did.
+- `session_id` is the same after `--resume`. `total_cost_usd` grew each run (0.0348, 0.0383, 0.0420), the steps are small, so it looks cumulative, not per-run (a per-run value of run 3 would not be above run 2 by the cost of one more turn plus a tool call at this size). Not proven with a large gap; the orchestrator should still take differences, as the design says.
+- `--max-turns 1` applies to the resumed run: run 3 stopped with `error_max_turns` and an empty `result`. `num_turns` is 2 there (the turn that hit the limit is counted), so do not read `num_turns <= max` as a rule. `--max-budget-usd` was not probed.
+- Hooks after resume were not probed (the probe agent had no hook to trigger).
+- Spawn form on this Windows host: `spawnSync("claude", args, { shell: true, input: prompt, encoding: "utf8" })`. Plain `"claude"` and `"claude.exe"` give ENOENT, `"claude.cmd"` without a shell gives EINVAL. With `shell: true` quote any path argument that may contain spaces. The `--agents` flag accepts a path to a JSON file.
+
+Conclusion: design choice A stands for tool limits and for `--max-turns`; cost must be handled as a session total (difference per round). Do not use `permission_denials` to detect that a role kept its limits; check the tool list or the absence of the tool call. Hooks and `--max-budget-usd` under `--resume` are still unchecked.
