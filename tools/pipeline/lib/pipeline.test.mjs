@@ -4,11 +4,12 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 
 import os from "node:os";
 import path from "node:path";
 import { main } from "../pipeline.mjs";
+import { planFiles } from "./build.mjs";
 
 const block = { severity: "blocking", file: "src/A.cs", line: 3, rule: "spec", summary: "still logs the CVV" };
 const review = (verdict, findings = []) => ({ verdict, summary: "s", findings });
 
-function setup({ implementer, branchExists = false, reviews, testsGreen = () => true, planText = "Touch src/Ordering.API/Apis/OrdersApi.cs" }) {
+function setup({ implementer, branchExists = false, reviews, testsGreen = () => true, planText = "Touch src/Ordering.API/Apis/OrdersApi.cs", remote = true, docker = () => true, functional = false }) {
   const repo = mkdtempSync(path.join(os.tmpdir(), "pipe-e2e-"));
   const workDir = path.join(repo, ".work", "7");
   mkdirSync(workDir, { recursive: true });
@@ -17,6 +18,7 @@ function setup({ implementer, branchExists = false, reviews, testsGreen = () => 
   writeFileSync(path.join(workDir, "issue.md"), "# Stop logging card data\n\nbody\n");
   const calls = [];
   const commits = [];
+  const pushes = [];
   let reviewIdx = 0;
   const implSessions = {};
   const deps = {
@@ -42,25 +44,26 @@ function setup({ implementer, branchExists = false, reviews, testsGreen = () => 
       headSha: () => "abc123",
       worktreeExists: () => false,
       branchExists: () => branchExists,
-      createWorktree: (_r, wt) => mkdirSync(wt, { recursive: true }),
+      createWorktree: (_r, wt) => mkdirSync(functional ? path.join(wt, "tests", "Ordering.FunctionalTests") : wt, { recursive: true }),
+      remoteBranchExists: () => remote,
       removeWorktree: () => {},
       changedFiles: () => ["src/Ordering.API/Apis/OrdersApi.cs"],
       restoreLineEndingOnly: () => [],
       diffPatch: () => "diff --git a b\n",
       numstat: () => ({ files: 3, added: 40, removed: 5, docsAdded: 0, docsRemoved: 0 }),
       commitByName: (wt, files, msg) => { commits.push({ files, msg }); return "deadbeef"; },
-      pushBranch: () => { throw new Error("must not push"); },
+      pushBranch: () => { pushes.push(1); throw new Error("must not push"); },
     },
     tests: {
       runTests: (_wt, _files, k) => ({ green: testsGreen(), buildOk: true, ran: [], noTests: true, log: "build ok\n" }),
-      dockerAvailable: () => true,
+      dockerAvailable: () => docker(),
     },
     gh: {
       issueView: () => ({ title: "Stop logging card data", body: "body" }),
       prCreate: () => { throw new Error("must not create a PR"); },
     },
   };
-  return { repo, workDir, deps, calls, commits };
+  return { repo, workDir, deps, calls, commits, pushes };
 }
 
 const run = (s, argv) => main({ argv, repo: s.repo, deps: s.deps, log: () => {} });
@@ -144,4 +147,71 @@ test("build: an aborted build (branch exists, no --fresh) logs no intervention",
   writeFileSync(path.join(s.workDir, "spec.sha256"), "stale-hash");
   assert.equal(await run(s, ["build", "7"]), 1);
   assert.equal(existsSync(path.join(s.workDir, "interventions.json")), false);
+});
+
+test("build: an ok:false implementer run with a cost (error_max_turns) is counted", async () => {
+  const s = setup({
+    reviews: [rv, review("APPROVE")],
+    implementer: (i) => (i === 1 ? { ...OK, ok: false, subtype: "error_max_turns", sessionId: "impl-1", costUsd: 2 } : { ...OK, sessionId: "impl-1", costUsd: 3 }),
+  });
+  assert.equal(await run(s, ["build", "7"]), 0);
+  const m = JSON.parse(readFileSync(path.join(s.workDir, "metrics.json"), "utf8"));
+  assert.deepEqual(m.roles.filter((r) => r.role === "implementer").map((r) => r.costUsd), [2, 1]);
+});
+
+test("build: a resumed run that returns a different session id is a new session (no delta)", async () => {
+  const s = setup({
+    reviews: [rv, review("APPROVE")],
+    implementer: (i) => (i === 1 ? { ...OK, sessionId: "impl-1", costUsd: 2 } : { ...OK, sessionId: "impl-other", costUsd: 0.5 }),
+  });
+  assert.equal(await run(s, ["build", "7"]), 0);
+  const m = JSON.parse(readFileSync(path.join(s.workDir, "metrics.json"), "utf8"));
+  assert.deepEqual(m.roles.filter((r) => r.role === "implementer").map((r) => r.costUsd), [2, 0.5]);
+});
+
+test("build --pr: base branch missing on origin -> exit 1 before any model call or push", async () => {
+  const s = setup({ reviews: [], remote: false });
+  const msgs = [];
+  const code = await main({ argv: ["build", "7", "--pr"], repo: s.repo, deps: s.deps, log: (m) => msgs.push(m) });
+  assert.equal(code, 1);
+  assert.match(msgs.join("\n"), /does not exist on origin.*Push it first/);
+  assert.equal(s.calls.length, 0);
+  assert.equal(s.pushes.length, 0);
+});
+
+test("build: Docker goes down mid-run -> exit 1 as an environment problem, not a round", async () => {
+  let n = 0;
+  const s = setup({ reviews: [], functional: true, docker: () => ++n === 1 });
+  const msgs = [];
+  const code = await main({ argv: ["build", "7"], repo: s.repo, deps: s.deps, log: (m) => msgs.push(m) });
+  assert.equal(code, 1);
+  assert.match(msgs.join("\n"), /not a round/);
+  assert.equal(s.calls.filter((c) => c.role === "reviewer").length, 0);
+  assert.equal(s.commits.length, 0);
+  assert.equal(existsSync(path.join(s.workDir, "round-1", "tests.txt")), false);
+});
+
+test("planFiles normalises backslashes", () => {
+  assert.deepEqual(planFiles("edit src\\Ordering.API\\Apis\\x.cs and src/Basket.API/y.cs"), ["src/Ordering.API/x", "src/Basket.API/x"]);
+});
+
+test("build: metrics carry wall-clock per role and per test step", async () => {
+  const s = setup({ reviews: [review("APPROVE")] });
+  assert.equal(await run(s, ["build", "7"]), 0);
+  const m = JSON.parse(readFileSync(path.join(s.workDir, "metrics.json"), "utf8"));
+  for (const r of m.roles) assert.equal(typeof r.wallMs, "number", r.role);
+  assert.equal(m.roles.find((r) => r.role === "implementer").durationMs, 10);
+  assert.equal(m.tests.length, 1);
+  assert.equal(m.tests[0].round, 1);
+  assert.equal(typeof m.tests[0].wallMs, "number");
+});
+
+test("build --fresh rerun does not log spec-edited twice for the same edited spec", async () => {
+  const s = setup({ reviews: [review("APPROVE"), review("APPROVE")] });
+  writeFileSync(path.join(s.workDir, "spec.sha256"), "analyst-version-hash");
+  assert.equal(await run(s, ["build", "7"]), 0);
+  s.deps.git.branchExists = () => true;
+  assert.equal(await run(s, ["build", "7", "--fresh"]), 0);
+  const edits = JSON.parse(readFileSync(path.join(s.workDir, "interventions.json"), "utf8")).filter((i) => i.kind === "spec-edited");
+  assert.equal(edits.length, 1);
 });

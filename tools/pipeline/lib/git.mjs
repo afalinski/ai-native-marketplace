@@ -1,8 +1,10 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
+const GIT_TIMEOUT_MS = 2 * 60_000;
+
 function run(cwd, args, { allowFail = false } = {}) {
-  const r = spawnSync("git", args, { cwd, encoding: "utf8", shell: false, maxBuffer: 256 * 1024 * 1024 });
+  const r = spawnSync("git", args, { cwd, encoding: "utf8", shell: false, maxBuffer: 256 * 1024 * 1024, timeout: GIT_TIMEOUT_MS });
   if (r.error) throw r.error;
   if (r.status !== 0 && !allowFail) {
     throw new Error(`git ${args.join(" ")} failed (${r.status}): ${(r.stderr || "").trim()}`);
@@ -118,4 +120,9 @@ export function branchExists(repo, branch) {
 
 export function pushBranch(repo, branch) {
   run(repo, ["push", "-u", "origin", branch]);
+}
+
+// True when `branch` exists on origin (git ls-remote --heads origin <branch>).
+export function remoteBranchExists(repo, branch) {
+  return run(repo, ["ls-remote", "--heads", "origin", branch]).stdout.trim() !== "";
 }

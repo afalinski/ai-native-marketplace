@@ -14,6 +14,7 @@ export async function spec({ n, repo, deps, log }) {
     renameSync(specPath, path.join(workDir, "spec.prev.md"));
     addIntervention(workDir, "spec-rerun", "spec.md existed; kept as spec.prev.md");
   }
+  const t0 = Date.now();
   const r = await deps.claude({
     role: "analyst",
     prompt: `Work directory (absolute): ${workDir}\nRead ${path.join(workDir, "issue.md")} and write ${specPath}.`,
@@ -24,7 +25,7 @@ export async function spec({ n, repo, deps, log }) {
     logPath: path.join(workDir, "runs", "analyst-0.json"),
     ...ROLE_LIMITS.analyst,
   });
-  writeFileSync(path.join(workDir, "spec-run.json"), JSON.stringify(roleEntry("analyst", 0, r)));
+  writeFileSync(path.join(workDir, "spec-run.json"), JSON.stringify(roleEntry("analyst", 0, { ...r, wallMs: Date.now() - t0 })));
   if (!r.ok) {
     log(`analyst failed (${r.subtype}): ${r.result}`);
     return 1;

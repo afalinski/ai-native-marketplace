@@ -23,5 +23,5 @@ export function addIntervention(workDir, kind, note) {
 }
 
 export function roleEntry(role, round, r) {
-  return { role, round, costUsd: r.costUsd ?? 0, turns: r.turns ?? 0, durationMs: r.durationMs ?? 0, subtype: r.subtype };
+  return { role, round, costUsd: r.costUsd ?? 0, turns: r.turns ?? 0, durationMs: r.durationMs ?? 0, wallMs: r.wallMs ?? 0, subtype: r.subtype };
 }

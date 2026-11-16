@@ -30,8 +30,14 @@ function tail(text, n = 200) {
   return lines.length > n ? lines.slice(-n).join("\n") : text;
 }
 
-function exec(cwd, args) {
-  const r = spawnSync("dotnet", args, { cwd, encoding: "utf8", shell: false, maxBuffer: 256 * 1024 * 1024 });
+export const BUILD_TIMEOUT_MS = 15 * 60_000;
+export const TEST_TIMEOUT_MS = 30 * 60_000;
+
+function exec(cwd, args, timeout) {
+  const r = spawnSync("dotnet", args, {
+    cwd, encoding: "utf8", shell: false, maxBuffer: 256 * 1024 * 1024, timeout,
+    env: { ...process.env, MSBUILDDISABLENODEREUSE: "1" },
+  });
   const out = `${r.stdout ?? ""}${r.stderr ?? ""}${r.error ? String(r.error) : ""}`;
   return { ok: r.status === 0, log: `$ dotnet ${args.join(" ")}\n${tail(out)}\n` };
 }
@@ -40,13 +46,13 @@ export function runTests(wt, files) {
   const { unit, functional } = mapTestProjects(files, wt);
   const projects = [...unit, ...functional];
   let log = "";
-  const build = exec(wt, ["build", "eShop.Web.slnf"]);
+  const build = exec(wt, ["build", "eShop.Web.slnf"], BUILD_TIMEOUT_MS);
   log += build.log;
   const ran = [];
   let testsOk = true;
   if (build.ok) {
     for (const p of projects) {
-      const t = exec(wt, ["test", "--project", p]);
+      const t = exec(wt, ["test", "--project", p], TEST_TIMEOUT_MS);
       log += t.log;
       ran.push(p);
       if (!t.ok) testsOk = false;
