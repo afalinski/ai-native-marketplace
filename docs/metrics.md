@@ -180,3 +180,18 @@ Calibration checks:
 - A unit test asserts that the card number and CVV are absent from every log call on that branch. ✅
 - `{@Command}` at `:148` is unchanged, and the reviewer raised nothing about it. ✅ (The spec itself put it out of scope.)
 - `ValidatorBehavior.cs:30` did not come up.
+
+### Live run — issue #4 (ARCH-06: `POST /api/orders` returns 200 when the create fails)
+
+| Metric | Value |
+|---|---|
+| Outcome | **escalated** (max-rounds), exit 2, no commit and no PR |
+| Rounds | 3 of 3 |
+| Wall-clock | spec 1.2 min; build 16.0 min (17:11:36 → 17:27:35 UTC) |
+| Cost total | $3.50: analyst 0.49, planner 1.12, implementer 0.92 + 0.42 + 0.06, reviewer 0.18 + 0.16 + 0.16 |
+| Test steps | 0.6 / 0.7 / 0.7 min (Ordering.UnitTests 48, WebApp.UnitTests 4 (new project), Ordering.FunctionalTests 12); no Catalog tests ran (the E12 fix works) |
+| Diff (uncommitted, in the worktree) | 14 files, +279 / −7; docs +6 / −6 |
+| Tests per round | round 1: 2 functional tests red; round 2: all green; round 3: all green |
+| Blocking findings per round | 3 → 1 → 1 (the same `.claude/rules/ordering.md:12` finding in rounds 2 and 3) |
+| Human interventions | 0 before the escalation (spec approved as written) |
+| Reviewer consistency | 3 of 3 rounds match |
