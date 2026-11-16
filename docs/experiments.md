@@ -253,3 +253,4 @@ Conclusion: when `--agent` is re-passed on `--resume`, the resumed session is of
   1. The analyst and planner must know which paths the pipeline cannot change (`.claude/**`). Either keep such paths out of scope or mark them "human after merge".
   2. `escalation.md` lists only the reviewer's finding. The implementer's explanation ("the edit tool refused, file is sensitive") was only in `runs/`. The escalation report should include the implementer's last message.
 - Next: decide what to do with the escalated worktree (a human applies the one-line edit, then commit and PR, which counts as an intervention), then fix both gaps.
+- Decision (Andrei, 2026-11-16): option (b). The escalated work is closed as the experiment's result, with no PR. The worktree and `agent/4` were removed; the artifacts stay in `.work/4/` (gitignored). Issue #4 stays open: ARCH-06 is still unfixed in the code.
