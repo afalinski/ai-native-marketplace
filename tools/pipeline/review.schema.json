@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reviewer verdict",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "findings"],
+  "properties": {
+    "verdict": { "type": "string", "enum": ["APPROVE", "CHANGES_REQUESTED"] },
+    "summary": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "file", "line", "rule", "summary"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["blocking", "non-blocking"] },
+          "file": { "type": "string" },
+          "line": { "type": "integer" },
+          "rule": { "type": "string", "enum": ["spec", "claude-md", "correctness", "test"] },
+          "summary": { "type": "string" }
+        }
+      }
+    }
+  }
+}
