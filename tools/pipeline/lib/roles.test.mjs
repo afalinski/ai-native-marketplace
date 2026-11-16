@@ -60,10 +60,11 @@ test("docs-writer: docs guard on Edit", () => {
   assert.match(fm.raw, /pipeline-write\.mjs[^\n]*"docs"/);
 });
 
-test("implementer has Bash and no extra hooks", () => {
+test("implementer has Bash and a worktree write guard on Write|Edit", () => {
   const fm = readRole("implementer");
   assert.ok(fm.toolList.includes("Bash"));
-  assert.doesNotMatch(fm.raw, /hooks:/);
+  assert.match(fm.raw, /matcher:\s*"Write\|Edit"/);
+  assert.match(fm.raw, /pipeline-write\.mjs[^\n]*"worktree"/);
 });
 
 test("review.schema.json requires verdict, summary, findings", () => {
