@@ -228,3 +228,13 @@ Result (costs are `total_cost_usd`, a client-side estimate; the table is from th
 - Spawn form on this Windows host: `spawnSync("claude", args, { shell: true, input: prompt, encoding: "utf8" })`. Plain `"claude"` and `"claude.exe"` give ENOENT, `"claude.cmd"` without a shell gives EINVAL. With `shell: true` quote path arguments. `--agents` accepted a path to a JSON file.
 
 Conclusion: when `--agent` is re-passed on `--resume`, the resumed session is offered only the role's tools (run 4), and `--max-turns` applies (run 3). The role is not kept if `--agent` is left out (run 5). Cost behaves like a session total. The design is not changed: choice A stands, with the rule "always re-pass `--agent` on `--resume`". Hooks and `--max-budget-usd` under `--resume` are still unchecked.
+
+## E12. Agent pipeline "issue → PR", calibration run (2026-11-16)
+- Hypothesis: a code orchestrator with fixed roles (analyst, planner, implementer, reviewer, docs-writer; tester = code) takes a 2–3 line issue to a reviewed, tested branch without a human between the two gates, and does not fall into the `{@Command}` trap.
+- What I did: built `tools/pipeline/` (ADR-008), opened issue #1, ran `spec 1`, approved the spec without edits, ran `build 1` without `--pr`.
+- Result: success in 1 round, 4.5 min and $0.99 in total (client-side estimate); 3 files changed, 0 human interventions, the trap avoided at every role. Observations:
+  - The analyst already scoped the trap out, so the reviewer was never tested on it. Its spec also repeats an earlier wrong claim (that `{@Command}` prints the CVV), which re-check row 8 had marked as unsupported.
+  - The docs-writer updated ARCH-07 correctly for the fix but kept that same unsupported claim. An agent propagates what the notes say.
+  - Catalog.FunctionalTests ran with no Catalog change: the build regenerated the Catalog OpenAPI files, and the tests are mapped before line endings are restored. That cost about 30 s; the fix is to restore before mapping.
+  - The reviewer's one non-blocking finding was valid: the last-4-digits case is not tested, and there is no `dotnet format` result.
+- Conclusion: the pipeline works end to end on a small task, and the stop, the round limit and the metrics live in code. One calibration run says little about the review loop: rounds 2–3 and escalation are so far exercised only by unit tests. Next: restore line endings before mapping tests; run a task where the trap is in scope; then the CI phase (`agent:spec` / `agent:build`).

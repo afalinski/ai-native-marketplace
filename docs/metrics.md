@@ -157,3 +157,26 @@ Against the stage 0 estimate of 2–2.5 h by hand: every run finished in under 4
 | M0 no MCP (second run) | 1 | 9 | 0 | 1.7 | 746 | 8.2 | $0.73 |
 | M1 Postgres MCP Pro | 10 | 0 | 0 | 3.4 | 769 | 7.8 | $0.76 |
 | M2 eShop.Mcp | 10 | 0 | 0 | 6.8 | 881 | 13.1 | $0.94 |
+
+## Stage 3 — pipeline "issue → PR" (2026-11-16, branch stage3-pipeline)
+
+Local run on the subscription. Costs are `total_cost_usd` from `claude -p --output-format json`, a client-side estimate, not a bill.
+
+### Calibration task — issue #1 (card number and CVV in the log, `OrdersApi.cs:134`)
+
+| Metric | Value |
+|---|---|
+| Outcome | success, branch `agent/1` (no PR yet) |
+| Rounds | 1 of 3 |
+| Wall-clock | spec 0.6 min; build 3.9 min (16:09:52 → 16:13:43 UTC) |
+| Cost total | $0.99: analyst 0.23, planner 0.33, implementer 0.19, reviewer 0.12, docs-writer 0.11 |
+| Test step | 1.0 min (build + Ordering.UnitTests 46, Ordering.FunctionalTests 11, Catalog.FunctionalTests 38) |
+| Diff | 3 files, +115 / −1 code and tests; docs +3 / −3 |
+| Human interventions | 0 (spec approved as written; one inaccurate out-of-scope sentence left in on purpose) |
+| Reviewer consistency | verdict matches findings (APPROVE, 0 blocking, 1 non-blocking) |
+
+Calibration checks:
+- `OrdersApi.cs:134` no longer logs the request; it logs only `UserId`. ✅
+- A unit test asserts that the card number and CVV are absent from every log call on that branch. ✅
+- `{@Command}` at `:148` is unchanged, and the reviewer raised nothing about it. ✅ (The spec itself put it out of scope.)
+- `ValidatorBehavior.cs:30` did not come up.
