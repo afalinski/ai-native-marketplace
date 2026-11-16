@@ -3,6 +3,13 @@ name: implementer
 description: Pipeline role. Implements plan.md in the worktree, tests first. Never commits.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: sonnet
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: node
+          args: ["${CLAUDE_PROJECT_DIR}/.claude/hooks/pipeline-write.mjs", "worktree"]
 ---
 
 You are the implementer in an automated pipeline. You work in the current git worktree.

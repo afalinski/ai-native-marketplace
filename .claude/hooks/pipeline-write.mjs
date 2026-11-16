@@ -1,6 +1,7 @@
 // PreToolUse guard for the pipeline roles (analyst, planner, docs-writer).
-// Usage: node pipeline-write.mjs <work|docs>
-//   work: may write only under $PIPELINE_WORK_DIR (set by the orchestrator).
+// Usage: node pipeline-write.mjs <work|docs|worktree>
+//   work: may write only under $PIPELINE_WORK_DIR (set by the orchestrator), but not under its wt/ subfolder (the worktree).
+//   worktree: may write only under $CLAUDE_PROJECT_DIR (the implementer's worktree).
 //   docs: may write only under <project>/docs/ and to <project>/CLAUDE.md.
 // Wired in each agent's frontmatter. Exit code 2 blocks the call.
 import { readFileSync } from "node:fs";
@@ -27,24 +28,31 @@ if (!file) block("no file path.");
 
 let dirs; // allowed subtrees
 let files = []; // allowed exact files
+let excluded = []; // subtrees blocked even inside an allowed one
 if (mode === "work") {
   const work = process.env.PIPELINE_WORK_DIR;
   if (!work) block("PIPELINE_WORK_DIR is not set.");
   dirs = [path.resolve(work)];
+  excluded = [path.resolve(work, "wt")];
+} else if (mode === "worktree") {
+  const proj = process.env.CLAUDE_PROJECT_DIR;
+  if (!proj) block("CLAUDE_PROJECT_DIR is not set.");
+  dirs = [path.resolve(proj)];
 } else if (mode === "docs") {
   dirs = [path.resolve(root, "docs")];
   files = [path.resolve(root, "CLAUDE.md")];
 } else {
-  block(`unknown mode "${mode ?? ""}" (expected work or docs).`);
+  block(`unknown mode "${mode ?? ""}" (expected work, docs or worktree).`);
 }
 
 // file_path arrives absolute, with backslashes on Windows. path.resolve normalises both.
 const target = fold(path.resolve(root, file));
 const ok =
+  !excluded.some((d) => target === fold(d) || target.startsWith(fold(d) + path.sep)) &&
   dirs.some((d) => target.startsWith(fold(d) + path.sep)) || files.some((f) => target === fold(f));
 
 if (!ok) {
   block(
-    `mode "${mode}" may write only ${mode === "work" ? "under PIPELINE_WORK_DIR" : "under docs/ and to CLAUDE.md"}, not to ${file}.`
+    `mode "${mode}" may write only ${{ work: "under PIPELINE_WORK_DIR (not its wt/)", worktree: "under CLAUDE_PROJECT_DIR", docs: "under docs/ and to CLAUDE.md" }[mode]}, not to ${file}.`
   );
 }
