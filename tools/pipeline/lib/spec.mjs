@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync } from "
 import path from "node:path";
 import { ROLE_LIMITS } from "./claude.mjs";
 import { addIntervention, roleEntry, sha256, workDirFor } from "./workdir.mjs";
+import { protectedPathsInScope, protectedPathsInstruction } from "./protected.mjs";
 
 // `spec <n>`: issue -> issue.md -> analyst (cwd = repo root) -> spec.md + spec.sha256. Returns an exit code.
 export async function spec({ n, repo, deps, log }) {
@@ -17,7 +18,7 @@ export async function spec({ n, repo, deps, log }) {
   const t0 = Date.now();
   const r = await deps.claude({
     role: "analyst",
-    prompt: `Work directory (absolute): ${workDir}\nRead ${path.join(workDir, "issue.md")} and write ${specPath}.`,
+    prompt: `Work directory (absolute): ${workDir}\nRead ${path.join(workDir, "issue.md")} and write ${specPath}.\n${protectedPathsInstruction()}`,
     cwd: repo,
     workDir,
     permissionMode: "acceptEdits",
@@ -34,7 +35,12 @@ export async function spec({ n, repo, deps, log }) {
     log("analyst finished but did not write spec.md");
     return 1;
   }
-  writeFileSync(path.join(workDir, "spec.sha256"), sha256(readFileSync(specPath, "utf8")));
+  const specText = readFileSync(specPath, "utf8");
+  writeFileSync(path.join(workDir, "spec.sha256"), sha256(specText));
+  const inScope = protectedPathsInScope(specText);
+  if (inScope.length) {
+    log(`WARNING: the Scope section names paths the pipeline cannot change: ${inScope.join(", ")}. Move them to "## Human after merge" before "build ${n}", or the build will escalate.`);
+  }
   log(`spec written: ${specPath}\nReview and edit it; running "build ${n}" counts as approval.`);
   return 0;
 }

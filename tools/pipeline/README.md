@@ -25,6 +25,11 @@ Costs are `total_cost_usd` from the client, a client-side estimate, not a bill.
 - `0` success
 - `1` error: bad input, `spec.md` not found, existing branch without `--fresh`, Docker down while functional tests are needed, analyst or planner failure
 - `2` escalation: 3 rounds without green tests and zero blocking findings, or the reviewer gave no verdict. No PR.
+- `escalation.md` lists the open blocking findings, the implementer's last message (from `runs/implementer-<k>.json`) and the last test run.
+
+## Paths the pipeline cannot change
+
+`lib/protected.mjs` (`PROTECTED_PATHS`, now `.claude/**`). Claude Code denies edits there even under `acceptEdits`. The analyst and planner are told to keep these paths out of scope and to list such changes under `## Human after merge`. `spec` prints a warning when the Scope section names one.
 
 ## Requirements
 

@@ -252,7 +252,7 @@ Conclusion: when `--agent` is re-passed on `--resume`, the resumed session is of
 - Conclusion: the loop and the stop work as designed: a real fix in round 2, and a hard stop instead of a workaround. The escalation was structural, not a quality problem: the analyst put a file into scope that the pipeline may not edit. Two gaps follow:
   1. The analyst and planner must know which paths the pipeline cannot change (`.claude/**`). Either keep such paths out of scope or mark them "human after merge".
   2. `escalation.md` lists only the reviewer's finding. The implementer's explanation ("the edit tool refused, file is sensitive") was only in `runs/`. The escalation report should include the implementer's last message.
-- Next: decide what to do with the escalated worktree (a human applies the one-line edit, then commit and PR, which counts as an intervention), then fix both gaps.
+- Next: decided (b), no PR (see below). Both gaps fixed on 2026-11-17: (1) `tools/pipeline/lib/protected.mjs` holds the single list of paths the pipeline cannot change (`.claude/**`). The analyst and planner prompts are built from it and tell them to put such changes under `## Human after merge`; `spec` warns when Scope names one. (2) `escalation.md` now includes the implementer's last message from `runs/implementer-<k>.json`. Covered by unit tests; not yet exercised in a live run.
 - Decision (Andrei, 2026-11-16): option (b). The escalated work is closed as the experiment's result, with no PR. The worktree and `agent/4` were removed; the artifacts stay in `.work/4/` (gitignored). Issue #4 stays open: ARCH-06 is still unfixed in the code.
 
 ## E14. AI review in CI with a Pro subscription token (2026-11-17)
