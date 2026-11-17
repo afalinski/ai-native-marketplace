@@ -88,7 +88,7 @@
 Frontmatter per role:
 
 | Role | model | tools | hooks |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | analyst | opus | Read, Grep, Glob, Write | PreToolUse `Write` → `pipeline-write.mjs work` |
 | planner | opus | Read, Grep, Glob, Write | same |
 | implementer | sonnet | Read, Grep, Glob, Edit, Write, Bash | none extra (project `guard.mjs` applies) |

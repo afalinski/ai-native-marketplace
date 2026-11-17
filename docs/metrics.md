@@ -5,7 +5,7 @@ Baseline measured before any AI tooling was added. Every later stage appends a c
 ## Stage 0 — baseline (2026-11-12, commit 913acea)
 
 | Metric | Value |
-|---|---|
+| --- | --- |
 | Projects (.csproj) | 28 |
 | C# in `src` | 498 files, ~22.7K lines (+40 Razor files) |
 | C# in `tests` | 49 files, ~3.6K lines |
@@ -21,7 +21,7 @@ Baseline measured before any AI tooling was added. Every later stage appends a c
 Estimate for an experienced .NET developer seeing this repo for the first time, working at a calm pace:
 
 | Step | Time |
-|---|---|
+| --- | --- |
 | Orientation: find the endpoint (`GetAllItems` v2 in `CatalogApi.cs`), filtering pattern, test fixture | 30–40 min |
 | Implementation: query parameters, filter, validation (`minPrice <= maxPrice`, non-negative) | 30 min |
 | Functional test (Testcontainers fixture, ~2 min per run, 2–3 runs) | 40 min |
@@ -36,23 +36,26 @@ Based on DORA (current set of five software delivery metrics) plus AI-specific m
 Principle: metrics are collected **automatically from systems** (CI/CD, Git, issue tracker), never from manual reports; failure is **defined before** measuring; we look at **trends**, not single numbers.
 
 ### Throughput
+
 | Metric | Definition | Source |
-|---|---|---|
+| --- | --- | --- |
 | Change lead time | First commit → change running in production | Git + deployment events |
 | Deployment frequency | Production deployments per day/week | CI/CD |
 | Failed deployment recovery time (former MTTR) | Failed deployment detected → service restored | Incident/alert tool + CI/CD |
 
 ### Instability
+
 | Metric | Definition | Source |
-|---|---|---|
+| --- | --- | --- |
 | Change failure rate | Deployments that needed immediate intervention (rollback, hotfix, feature flag turned off, incident) ÷ all deployments | Deployment events linked to incidents/hotfixes by version / commit SHA |
 | Deployment rework rate | Unplanned deployments made to fix a user-facing bug ÷ all deployments | CI/CD + issue type |
 
 Context (DORA 2025, State of AI-assisted Software Development): AI adoption is now **positively** related to throughput but **still negatively** related to stability. AI is an **amplifier** of the existing system — this is why stability metrics and cohort comparison are mandatory.
 
 ### AI-specific (aligned with Anthropic's Claude Code analytics)
+
 | Metric | Definition | Source |
-|---|---|---|
+| --- | --- | --- |
 | PRs with Claude Code (%) | Merged PRs containing at least one line written with Claude Code ÷ all merged PRs | PR label `claude-code-assisted` (same label Anthropic's contribution metrics use) |
 | PRs per engineer per day | Merged PRs ÷ active engineers — the headline measure Anthropic reported internally | GitHub |
 | Cohort comparison | All DORA metrics split into `claude-code-assisted` vs. other PRs, within the same task type | GitHub labels + deployment/incident data |
@@ -78,7 +81,7 @@ In this demo repo, `main` + the local Kubernetes deployment play the role of pro
 Run of `/explore-system` (ADR-002): 8 service explorers in parallel → 2 theme explorers in parallel → architect → critic.
 
 | Metric | Value |
-|---|---|
+| --- | --- |
 | Wall-clock time | 10:45:40Z → 11:01:59Z (~17 min), orchestrator start to critic finish |
 | Claims written | 356 checked: 254 in service cards, 99 in theme cards (EVT 60, SEC 39), 3 new architect claims (ARCH) |
 | Critic: confirmed | 347 |
@@ -92,7 +95,7 @@ Per-claim rejection rate measures card accuracy only. The architect's serious er
 ### Tokens and time per role (subagent totals as reported by the harness)
 
 | Role | Calls | Tokens | Tool uses | Duration (longest call) |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | Explorer — services (sonnet) | 8 | 241,023 | 162 | 49 s |
 | Explorer — themes (sonnet) | 2 | 131,143 | 66 | 103 s |
 | Architect (opus) | 1 | 89,844 | 14 | 289 s |
@@ -104,7 +107,7 @@ Orchestrator tokens: not available from inside the session. The critic is the mo
 ### Revision round (one round, `/revise-architecture`)
 
 | Metric | Before | After |
-|---|---|---|
+| --- | --- | --- |
 | Plan soundness (target steps with no open critic finding ÷ all steps) | 3 / 13 = **23 %** | 10 / 13 = **77 %** |
 | Revision-log items re-checked | — | 30: 27 fixed, 1 still unsupported, 2 new problems |
 | New problems found in touched text | — | 1 (N1: BFF catalog routes forward any HTTP method) |
@@ -115,7 +118,7 @@ Tokens for this round were not captured.
 ## Stage 2 — harness (2026-11-12, in progress)
 
 | Metric | Value |
-|---|---|
+| --- | --- |
 | Always-on instructions (`CLAUDE.md`) | 33 lines |
 | Path-scoped rules (`.claude/rules/`, five files) | 76 lines, loaded only on matching paths |
 | Stop-hook build, changed code, cold | 10–13 s |
@@ -125,14 +128,14 @@ Tokens for this round were not captured.
 | Task skills | 3 (`add-endpoint`, `add-integration-event`, `add-migration`) |
 | Skill trigger check | 4 of 4 prompts as intended (one run each) |
 | Reference task in three setups (A0, B, C) | measured, see below and E8 |
-| Tool-design eval (E10), N=1 pilot, 10 questions | M0 no MCP 1 correct / 9 abstained (first run read the seed files: 5/5/0; after blocking eval/** and tests/** it is 1/9/0); M1 Postgres MCP Pro 10 / 0 / 0; M2 eShop.Mcp 10 / 0 / 0; no wrong answers; see below and E10 |
+| Tool-design eval (E10), N=1 pilot, 10 questions | M0 no MCP 1 correct / 9 abstained (first run read the seed files: 5/5/0; after blocking `eval/**` and `tests/**` it is 1/9/0); M1 Postgres MCP Pro 10 / 0 / 0; M2 eShop.Mcp 10 / 0 / 0; no wrong answers; see below and E10 |
 
 ### Reference task in three setups (2026-11-13, E8)
 
 Price-range filter in Catalog v2 with a functional test. Model Sonnet, headless, one clone per run. Correctness = build + all Catalog functional tests + a hidden acceptance test written before the runs (6 cases) + v1 contract unchanged + v2 OpenAPI updated + no files outside Catalog.
 
 | Setup | Run | Time | Cost | Turns | Correct | Ready to commit (no line-ending-only file in the diff) | 400 body |
-|---|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- | --- |
 | A0, no configuration | 1 | 141 s | $0.20 | 14 | yes | no | validation problem |
 | A0 | 2 | 104 s | $0.17 | 14 | yes | no | validation problem |
 | B, with the wrong filter command | 1 | 174 s | $0.41 | 22 | yes | yes | ProblemDetails |
@@ -141,7 +144,7 @@ Price-range filter in Catalog v2 with a functional test. Model Sonnet, headless,
 | C, one 663-line `CLAUDE.md` | 1 | 184 s | $0.49 | 22 | yes | yes | plain string |
 
 | Always-on context at session start (tokens written to cache, trivial prompt) | Value |
-|---|---|
+| --- | --- |
 | A0 | 9,343 |
 | B | 9,417 |
 | C | 35,160 |
@@ -153,7 +156,7 @@ Against the stage 0 estimate of 2–2.5 h by hand: every run finished in under 4
 10 questions, Sonnet, headless, one run per cell (30 runs). First signal, not proof. Data leakage found and fixed: the first M0 run read the seed files (5/5/0); after blocking `eval/**` and `tests/**` the M0 row below (1/9/0) is the reported one. Cost is the total for 10 runs, an API-equivalent estimate (Pro subscription, not money spent). Tokens: without cache M2 > M1 (881 vs 769), with cache M2 < M1 (139,009 vs 156,757), so no token winner.
 
 | Variant | Correct | Abstained | Wrong | Mean tool calls | Mean tokens (input+output) | Mean seconds | Total cost for 10 runs (API-equivalent estimate) |
-|---|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- | --- |
 | M0 no MCP (second run) | 1 | 9 | 0 | 1.7 | 746 | 8.2 | $0.73 |
 | M1 Postgres MCP Pro | 10 | 0 | 0 | 3.4 | 769 | 7.8 | $0.76 |
 | M2 eShop.Mcp | 10 | 0 | 0 | 6.8 | 881 | 13.1 | $0.94 |
@@ -165,7 +168,7 @@ Local run on the subscription. Costs are `total_cost_usd` from `claude -p --outp
 ### Calibration task — issue #1 (card number and CVV in the log, `OrdersApi.cs:134`)
 
 | Metric | Value |
-|---|---|
+| --- | --- |
 | Outcome | success, branch `agent/1` (no PR yet) |
 | Rounds | 1 of 3 |
 | Wall-clock | spec 0.6 min; build 3.9 min (16:09:52 → 16:13:43 UTC) |
@@ -184,7 +187,7 @@ Calibration checks:
 ### Live run — issue #4 (ARCH-06: `POST /api/orders` returns 200 when the create fails)
 
 | Metric | Value |
-|---|---|
+| --- | --- |
 | Outcome | **escalated** (max-rounds), exit 2, no commit and no PR |
 | Rounds | 3 of 3 |
 | Wall-clock | spec 1.2 min; build 16.0 min (17:11:36 → 17:27:35 UTC) |

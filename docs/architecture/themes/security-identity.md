@@ -25,8 +25,9 @@ Identity.API (Duende IdentityServer) issues tokens. Browser apps sign in with Op
 - [SEC-13] Ownership of data is scoped by the `sub` claim: Webhooks queries filter on `UserId`. Ordering `GET /{orderId}` does not filter by user (see ORD-28 in the Ordering card) — `src/Webhooks.API/Apis/WebHooksApi.cs:15-16,25-27,71-72`, `src/Ordering.API/Infrastructure/Services/IdentityService.cs:5-6`
 
 ## Integration events
+
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | none | Neither | [SEC-14] Integration events carry no auth context in what was read. RabbitMQ connection strings are plain `amqp://localhost` in appsettings, and AppHost injects the broker via `WithReference(rabbitMq)` — `src/Basket.API/appsettings.json:13-16`, `src/Webhooks.API/appsettings.json:23-25`, `src/eShop.AppHost/AppHost.cs:34` |
 
 ## Dependencies

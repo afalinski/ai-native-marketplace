@@ -217,7 +217,7 @@ Evidence for the flow:
 ## 3. Top 5 weak spots
 
 | # | Weak spot | Severity | Key claims |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Integration events can be lost silently at every hop | High | EVT-28, EVT-29, EVT-30, EVT-32, EVT-35, EVT-48 |
 | 2 | Stock is not reserved, and decrements are neither safe nor idempotent | High | EVT-52, EVT-37, EVT-42, EVT-53, EVT-54 |
 | 3 | Catalog writes are public, and API authorization is too coarse | High | SEC-04, ARCH-01, SEC-31, SEC-22, ORD-28 |
@@ -534,7 +534,7 @@ flowchart LR
 Revision of 2026-11-12 at commit dde18d6, against `docs/architecture/verification.md`. Finding numbers refer to the "Overview conclusions not supported by the evidence" section of that file. "Claim" rows refer to its "Claims that are not CONFIRMED" table.
 
 | # | Finding | What changed | Sections touched | Evidence |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 1 | Finding 1: step 2(b) `AddDefaultAuthentication()` would do nothing | Step 2(b) now adds the `Identity` section, the AppHost `Identity__Url` wiring and a fail-closed check, plus a verify item for the missing section. Added ARCH-04. | 0, 4 (step 2) | `AuthenticationExtensions.cs:22-28,35-36`; `AppHost.cs:38-40` vs `:35,46,59`; appsettings grep |
 | 2 | Finding 1, residual | Evidence gap: no admin role, admin claim or catalog scope exists in the cards or in `Config.cs`. The step says the policy's claim is an open decision instead of naming one. | 4 (step 2) | `src/Identity.API/Configuration/Config.cs:10-12,22-24` (IDN-08) |
 | 3 | Finding 2: step 3 misdiagnoses idempotency | Step 3 now removes the exception swallow, maps domain exceptions to 400 and makes create return an error on `false`. It no longer asks to move the `ClientRequest` write. Added ARCH-05 and ARCH-06. | 0, 4 (step 3) | `IdentifiedCommandHandler.cs:48,87,99-102`; `TransactionBehavior.cs:27-30,38-47`; `RequestManager.cs:34-36`; `OrdersApi.cs:155-166` |

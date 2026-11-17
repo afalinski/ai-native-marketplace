@@ -24,7 +24,7 @@ Shared infrastructure rather than a business service. The AppHost (.NET Aspire) 
 No concrete events are defined in this scope. It supplies the mechanism.
 
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | (any IntegrationEvent subtype) | Published directly to the RabbitMQ exchange `eshop_event_bus` (direct type), routing key = type name, persistent delivery. Services also use the outbox log service. | [PLT-10] `src/EventBusRabbitMQ/RabbitMQEventBus.cs:20,33,47-49,75-77,97-102` |
 | (types registered with AddSubscription) | Handled: queue named by `EventBus:SubscriptionClientName`, bound per event name, handlers resolved as keyed transient services by event type | [PLT-11] `src/EventBusRabbitMQ/RabbitMQEventBus.cs:258-285`, `src/EventBus/Extensions/EventBusBuilderExtensions.cs:27-35` |
 

@@ -26,8 +26,9 @@ Owns the product catalog: items, brands and types, item pictures, and per-item s
 - [CAT-14] Other services' use of `catalogdb`: the AppHost wires the database to the catalog-api project at `src/eShop.AppHost/AppHost.cs:17,38`. No other project referencing `catalogdb` was found in the grep over `src/` (cs/csproj files). The WebApp reaches the catalog over HTTP only — `src/WebApp/Extensions/Extensions.cs:34`
 
 ## Integration events
+
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | ProductPriceChangedIntegrationEvent | Published (on price change in update) | [CAT-15] `src/Catalog.API/Apis/CatalogApi.cs:394-405` |
 | OrderStockConfirmedIntegrationEvent | Published (all items have stock) | [CAT-16] `src/Catalog.API/IntegrationEvents/EventHandling/OrderStatusChangedToAwaitingValidationIntegrationEventHandler.cs:27-32` |
 | OrderStockRejectedIntegrationEvent | Published (some item lacks stock) | [CAT-16] same lines |

@@ -55,7 +55,7 @@ Trade-off of A, recorded in metrics: round costs are not independent, and the co
 
 ### Commands
 
-```
+```bash
 node tools/pipeline/pipeline.mjs spec  <issue>            # gate 1 prepared
 node tools/pipeline/pipeline.mjs build <issue> [--pr]     # runs after the human approves spec.md
 ```
@@ -79,7 +79,7 @@ The two commands map one-to-one to the future CI labels `agent:spec` and `agent:
 Each role is a file in `.claude/agents/`. The orchestrator runs it as `claude -p --agent <role> --output-format json --max-turns <N> --max-budget-usd <B>` plus the rights below. Limits sit in one config object at the top of `pipeline.mjs`.
 
 | Role | Model | Rights | Input → output |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `analyst` | opus | Read, Grep, Glob. Write only into `.work/<n>/` (a PreToolUse hook in the style of `docs-only.mjs`) | `issue.md` + code → `spec.md`: problem, scope, acceptance criteria (testable), out of scope |
 | `planner` | opus | same as analyst | `spec.md` + code → `plan.md`: files, steps, tests to add, how to verify |
 | `implementer` | sonnet | `--permission-mode acceptEdits`; `--allowedTools` limited to `dotnet build`, `dotnet test`, `git status`, `git diff` (guard hook still applies) | round 1: `spec.md` + `plan.md`. Round 2+: `--resume` with `round-<k-1>/review.md` + `tests.txt` → code and tests in the worktree. It does not commit |
@@ -105,7 +105,7 @@ Each role is a file in `.claude/agents/`. The orchestrator runs it as `claude -p
 
 ### Round loop (in code)
 
-```
+```text
 for k in 1..3:
   implementer (k==1: new session; k>1: --resume same session)
   tests step (code): dotnet build eShop.Web.slnf; then dotnet test for the affected test projects
@@ -154,7 +154,7 @@ If any of these does not hold, I'll come back to Andrei before switching to B; I
 ### Metrics (`.work/<n>/metrics.json`, also in `report.md` and the PR body)
 
 | Metric | Where it comes from |
-|---|---|
+| --- | --- |
 | Wall-clock per role and total | timestamps in the orchestrator |
 | Cost per role, per round, and total (client-side estimate) | `total_cost_usd` of each `claude -p` run. For the resumed implementer, take the difference to the previous cumulative value, because `--resume` reports the session total |
 | Turns per run | `num_turns` |

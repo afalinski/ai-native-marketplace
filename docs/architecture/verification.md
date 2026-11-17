@@ -7,7 +7,7 @@
 ## Totals
 
 | Checked | Confirmed | Not confirmed | Wrong |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 356 | 347 | 3 | 6 |
 
 Rejection rate = (3 + 6) / 356 = 2.5%.
@@ -19,7 +19,7 @@ The low rejection rate for the cards does not mean the overview is sound. The ov
 ## Claims that are not CONFIRMED
 
 | ID | Verdict | What the code shows |
-|---|---|---|
+| --- | --- | --- |
 | ORD-05 | WRONG | The card says POST `/` "deliberately avoids logging the request". Only one log call carries that comment (`src/Ordering.API/Apis/OrdersApi.cs:126-130`). The same method logs the full request, including the unmasked card number and CVV, when the request ID is missing (`OrdersApi.cs:134`). It logs the command, with `CardSecurityNumber` in clear, at `OrdersApi.cs:148-153`, `src/Ordering.API/Application/Behaviors/LoggingBehavior.cs:9` and `src/Ordering.API/Application/Behaviors/TransactionBehavior.cs:41` (`{@Command}`). `CreateOrderCommand` has no ignore attribute (`src/Ordering.API/Application/Commands/CreateOrderCommand.cs:52-53`). |
 | EVT-59 | WRONG | A renamed type does not "deserialise to null". The type lookup returns null (`src/IntegrationEventLogEF/Services/IntegrationEventLogService.cs:28`), and null is then passed to `JsonSerializer.Deserialize(Content, type, ...)` (`src/IntegrationEventLogEF/IntegrationEventLogEntry.cs:37`). That call throws for a null type. One stale row would fail the whole pending-events batch, not yield a null event. |
 | WHK-29 | WRONG (partly) | "No retries ... no per-call timeout" ignores the default HttpClient pipeline. `AddServiceDefaults` calls `ConfigureHttpClientDefaults(... AddStandardResilienceHandler())` (`src/eShop.ServiceDefaults/Extensions.cs:22-29`), and Webhooks.API uses it (`src/Webhooks.API/Program.cs:3`). The factory client in `WebhooksSender.cs:7` therefore gets the standard retry, timeout and circuit-breaker handler. Still true: `Task.WhenAll` faults the handler (`WebhooksSender.cs:10`), and status codes are not checked. PLT-18 already states the resilience default, so the cards contradict each other. |
@@ -37,7 +37,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Catalog (CAT)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | CAT-01 | CONFIRMED | |
 | CAT-02 | CONFIRMED | |
 | CAT-03 | CONFIRMED | |
@@ -81,7 +81,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Basket (BAS)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | BAS-01 | CONFIRMED | |
 | BAS-02 | CONFIRMED | |
 | BAS-03 | CONFIRMED | |
@@ -113,7 +113,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Ordering (ORD)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | ORD-01 | CONFIRMED | |
 | ORD-02 | CONFIRMED | |
 | ORD-03 | CONFIRMED | |
@@ -151,7 +151,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Processors (PRC)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | PRC-01 | CONFIRMED | |
 | PRC-02 | CONFIRMED | |
 | PRC-03 | CONFIRMED | |
@@ -181,7 +181,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Identity (IDN)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | IDN-01 | CONFIRMED | |
 | IDN-02 | CONFIRMED | |
 | IDN-03 | CONFIRMED | |
@@ -218,7 +218,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Webhooks (WHK)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | WHK-01 | CONFIRMED | |
 | WHK-02 | CONFIRMED | |
 | WHK-03 | CONFIRMED | |
@@ -261,7 +261,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### WebApp (WEB)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | WEB-01 | CONFIRMED | |
 | WEB-02 | CONFIRMED | |
 | WEB-03 | CONFIRMED | |
@@ -295,7 +295,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Platform (PLT)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | PLT-01 | CONFIRMED | |
 | PLT-02 | CONFIRMED | |
 | PLT-03 | CONFIRMED | |
@@ -331,7 +331,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Events and consistency (EVT)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | EVT-01 | CONFIRMED | |
 | EVT-02 | CONFIRMED | |
 | EVT-03 | CONFIRMED | |
@@ -396,7 +396,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Security and identity (SEC)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | SEC-01 | CONFIRMED | |
 | SEC-02 | CONFIRMED | |
 | SEC-03 | CONFIRMED | |
@@ -440,7 +440,7 @@ Notes marked "line" are citation drift only. The claim is true.
 ### Architect claims (ARCH)
 
 | ID | Verdict | Note |
-|---|---|---|
+| --- | --- | --- |
 | ARCH-01 | CONFIRMED | `Extensions.cs:141-143`: no HTTP method match. `AppHost.cs:62-63` makes the BFF external. A write also needs `api-version` in the query. |
 | ARCH-02 | CONFIRMED | |
 | ARCH-03 | CONFIRMED | |
@@ -514,7 +514,7 @@ Conclusions that the evidence does support: weak spots 1, 2 and 3 as stated, inc
 ### Revision log items
 
 | Row | Verdict | Evidence and note |
-|---|---|---|
+| --- | --- | --- |
 | 1 | FIXED | ARCH-04 holds. `AuthenticationExtensions.cs:22-28` returns silently without an `Identity` section. `:35-36` need `Url` and `Audience` (inside the `AddJwtBearer` options lambda, so they fail on first use, not at registration). `AppHost.cs:38-40` gives catalog-api no `Identity__Url`; `:35,46,59` give it to basket, ordering, webhooks. The grep over `src/**/appsettings*.json` for `"Identity"` finds only `Basket.API:17`, `Ordering.API:29`, `Webhooks.API:29`. Step 2(b) now adds config, wiring and a fail-closed rule. But see N1: step 2(a) does not work. |
 | 2 | FIXED | `Config.cs:10-12` (`ApiResource` with no scopes) and `:22-24` (scopes `orders`, `basket`, `webhooks` only). No admin role or catalog scope exists. Leaving the policy claim open is correct. |
 | 3 | FIXED | ARCH-05 holds. `Extensions.cs:39-41` registers Logging, Validator, Transaction in that order. `TransactionBehavior.cs:27-30` reuses an open transaction; `:38-47` commits it. `RequestManager.cs:34-36` adds and saves on the same context. `IdentifiedCommandHandler.cs:48` writes the row, `:87` sends the inner command, `:99-102` swallows. `ValidatorBehavior.cs:32` throws `OrderingDomainException` inside the inner `Send`, so it is swallowed too. `OrdersApi.cs:155-166` returns `Ok()` on both branches; `:41-46` and `:70-75` return 500 on `false`. Step 3's fix (remove the swallow) matches the code. A propagating exception skips `CommitTransactionAsync` (`TransactionBehavior.cs:47`), so the outer transaction is disposed without commit. |
@@ -522,7 +522,7 @@ Conclusions that the evidence does support: weak spots 1, 2 and 3 as stated, inc
 | 5 | FIXED | Wrappers exist for every event-driven command: `SetAwaitingValidation...`, `SetStockConfirmed...`, `SetStockRejected...`, `SetPaid...` (`Commands/*Handler.cs`), and `CancelOrderIdentifiedCommandHandler` (`CancelOrderCommandHandler.cs:34`). The five event handlers send plain commands (`OrderStockConfirmedIntegrationEventHandler.cs:21` and the others), so ARCH-03 and EVT-41 hold. Minor imprecision: the principles say that until step 3, "step 5's dead-letter queue cannot see Ordering failures". Today the event handlers send plain commands, so their failures do reach the consumer. It is true only after step 4 routes them through the wrapper. The order 3, 4, 5 makes this harmless. |
 | 6 | FIXED | ARCH-08: `UsersSeed.cs:18,63` masked numbers, `:30,75` CVV `"123"`/`"456"`, `:33,78` the `CreateAsync` calls. `ExternalController.cs:200-204` creates a user with only `UserName`. The grep for `CardNumber` and `SecurityNumber` finds no other writer in Identity.API. `ProfileService.cs:70-80` is the producer. Readers of `card_*`: only `ClientApp/Services/Identity/IdentityService.cs:85-88`. `BasketState.cs:100-103` sends a hard-coded card. ARCH-09: `src/Identity.API/tempkey.jwk` exists, `Identity.API.csproj:50` copies it, `Program.cs:29,37` match. Neither `.gitignore` (root, `src/Identity.API/.gitignore`) has a matching pattern. Token claims for `maui`, `webapp`, `webhooksclient` go into the ID token (`Config.cs:72,89,125`). The conditional wording about the signing key is right: no repository code shows that `AddDeveloperSigningCredential` loads this file. |
 | 7 | FIXED | `IdentityService.cs:85-88` reads `card_number`, `card_holder`, `card_security_number`. Step 10 orders the changes correctly. |
-| 8 | STILL UNSUPPORTED (partly) | ARCH-07 says the CVV is logged "in clear" by four `{@Command}` log calls. The code does not show that. The repository has no Serilog or other destructuring logger (grep for `Serilog|Destructur` over `*.cs`, `*.csproj`, `*.props`: no match). Logging is `Microsoft.Extensions.Logging` plus OpenTelemetry with only `IncludeFormattedMessage` and `IncludeScopes` (`ServiceDefaults/Extensions.cs:52-56`). `IdentifiedCommand` (`IdentifiedCommand.cs:3`) and `CreateOrderCommand` (`CreateOrderCommand.cs:16`) are plain classes with no `ToString` override. With the default logger, `{@Command}` is formatted with `ToString()`, so the message shows a type name, not `CardSecurityNumber`. This is framework behaviour that I did not run; the overview and round 1 (the ORD-05 verdict) both assumed the opposite without showing a serializer. What does hold: line `OrdersApi.cs:134` logs `CreateOrderRequest`, which is a `record` (`OrdersApi.cs:171-185`), so its generated `ToString` prints `CardNumber` and `CardSecurityNumber` in clear. Two further defects: (1) `[FromHeader] Guid requestId` is non-nullable (`OrdersApi.cs:119`), so a missing header is normally rejected by the framework before the handler runs; the `Guid.Empty` branch at `:132-136` fires when the header is the all-zero GUID, not when it is "missing" (framework behaviour, not run). (2) The log list is incomplete: `ValidatorBehavior.cs:30` also logs `{@Command}` on a validation failure, and `IdentifiedCommandHandler.cs:89-95` logs it again after the command. Step 10's list of places to fix omits `ValidatorBehavior`. The claim "CVV in clear on the normal create path" and step 10's framing should be rewritten as "the code passes the command object to the logger; whether the fields are written depends on the logging provider, which is not configured here". |
+| 8 | STILL UNSUPPORTED (partly) | ARCH-07 says the CVV is logged "in clear" by four `{@Command}` log calls. The code does not show that. The repository has no Serilog or other destructuring logger (grep for `Serilog\|Destructur` over `*.cs`, `*.csproj`, `*.props`: no match). Logging is `Microsoft.Extensions.Logging` plus OpenTelemetry with only `IncludeFormattedMessage` and `IncludeScopes` (`ServiceDefaults/Extensions.cs:52-56`). `IdentifiedCommand` (`IdentifiedCommand.cs:3`) and `CreateOrderCommand` (`CreateOrderCommand.cs:16`) are plain classes with no `ToString` override. With the default logger, `{@Command}` is formatted with `ToString()`, so the message shows a type name, not `CardSecurityNumber`. This is framework behaviour that I did not run; the overview and round 1 (the ORD-05 verdict) both assumed the opposite without showing a serializer. What does hold: line `OrdersApi.cs:134` logs `CreateOrderRequest`, which is a `record` (`OrdersApi.cs:171-185`), so its generated `ToString` prints `CardNumber` and `CardSecurityNumber` in clear. Two further defects: (1) `[FromHeader] Guid requestId` is non-nullable (`OrdersApi.cs:119`), so a missing header is normally rejected by the framework before the handler runs; the `Guid.Empty` branch at `:132-136` fires when the header is the all-zero GUID, not when it is "missing" (framework behaviour, not run). (2) The log list is incomplete: `ValidatorBehavior.cs:30` also logs `{@Command}` on a validation failure, and `IdentifiedCommandHandler.cs:89-95` logs it again after the command. Step 10's list of places to fix omits `ValidatorBehavior`. The claim "CVV in clear on the normal create path" and step 10's framing should be rewritten as "the code passes the command object to the logger; whether the fields are written depends on the logging provider, which is not configured here". |
 | 9 | FIXED | ARCH-10: `ServiceDefaults/Extensions.cs:22-29` adds `AddStandardResilienceHandler`; `Webhooks.API/Program.cs:3` calls `AddServiceDefaults`; `WebhooksSender.cs:7` uses `CreateClient()`, `:10` `Task.WhenAll`, `:32` returns `SendAsync` without a status check. `GrantUrlTesterService.cs:22-27` as described. The runner-up also keeps the same-origin check (`:7`, `:37-45`), so "any URL" means any URL on the hook's origin; the overview states that. |
 | 10 | FIXED | No options are passed to `AddStandardResilienceHandler()` (`Extensions.cs:25`). "Can replay a POST" is hedged and the decision is left to the step. |
 | 11 | FIXED | `GrantUrlTesterService.cs:23` (`tokenExpected` null for an empty token) and `:27`. Step 13 requires a token. |
@@ -549,13 +549,13 @@ Conclusions that the evidence does support: weak spots 1, 2 and 3 as stated, inc
 ### Items found in text that the revision touched
 
 | ID | Verdict | Evidence and note |
-|---|---|---|
-| N1 | NEW PROBLEM | Step 2(a), "Restrict the BFF catch-all `/api/catalog/{*any}` to GET", and its verify item "An anonymous PUT through the BFF gets no route match". No route in `Extensions.cs:93-152` has a method restriction (grep for `WithMatchMethods|Methods` in `src/eShop.AppHost`: no match). The earlier routes `/catalog-api/api/catalog/items` (`:97`) and `/catalog-api/api/catalog/items/{id}` (`:105`) strip the prefix and forward any method. Catalog's writes are `v1.MapPut("/items")` (`CatalogApi.cs:100`), `v2.MapPut("/items/{id:int}")` (`:105`), `MapPost("/items")` (`:110`) and `MapDelete("/items/{id:int}")` (`:114`). So `PUT`, `POST` and `DELETE` on `/catalog-api/api/catalog/items[/{id}]?api-version=...` still reach Catalog after the catch-all is restricted, and the verify step would fail. ARCH-01 and CAT-07 call the `/catalog-api/...` routes "read routes"; the code does not restrict them to reads. The fix is to add a method match to every catalog route, or to remove the unneeded routes. Round 1 confirmed ARCH-01 and missed this; the text predates the revision, but it is in step 2, which the revision changed. |
+| --- | --- | --- |
+| N1 | NEW PROBLEM | Step 2(a), "Restrict the BFF catch-all `/api/catalog/{*any}` to GET", and its verify item "An anonymous PUT through the BFF gets no route match". No route in `Extensions.cs:93-152` has a method restriction (grep for `WithMatchMethods\|Methods` in `src/eShop.AppHost`: no match). The earlier routes `/catalog-api/api/catalog/items` (`:97`) and `/catalog-api/api/catalog/items/{id}` (`:105`) strip the prefix and forward any method. Catalog's writes are `v1.MapPut("/items")` (`CatalogApi.cs:100`), `v2.MapPut("/items/{id:int}")` (`:105`), `MapPost("/items")` (`:110`) and `MapDelete("/items/{id:int}")` (`:114`). So `PUT`, `POST` and `DELETE` on `/catalog-api/api/catalog/items[/{id}]?api-version=...` still reach Catalog after the catch-all is restricted, and the verify step would fail. ARCH-01 and CAT-07 call the `/catalog-api/...` routes "read routes"; the code does not restrict them to reads. The fix is to add a method match to every catalog route, or to remove the unneeded routes. Round 1 confirmed ARCH-01 and missed this; the text predates the revision, but it is in step 2, which the revision changed. |
 
 ### Totals for the re-check
 
 | Revision-log rows checked | FIXED | STILL UNSUPPORTED | NEW PROBLEM |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 30 | 27 | 1 (row 8) | 2 (rows 13, 27) |
 
 Extra item outside the log rows: N1, NEW PROBLEM (1). New problems in total: 3.
@@ -567,7 +567,7 @@ Rows 8, 13, 27 and item N1 are the open ones. Rejection rate for the 31 items = 
 "Before" is taken from the "Overview conclusions not supported by the evidence" section of the original verification: findings 1 to 11, mapped to the step each one names. "After" is this re-check.
 
 | Step | Open finding before revision | Open finding after revision | Basis |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1. Make event loss visible | no | no | Not named in any original finding; unchanged. |
 | 2. Close Catalog writes | yes (finding 1) | yes | Finding 1 fixed (row 1). N1: restricting only the catch-all leaves the `/catalog-api/...` routes open. |
 | 3. Honest checkout | yes (findings 2, 7) | no | Rows 3, 4, 14 fixed. |

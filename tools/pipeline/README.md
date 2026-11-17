@@ -2,7 +2,7 @@
 
 Two commands, one per human gate. Design: `docs/superpowers/specs/2026-11-16-agent-pipeline-design.md`.
 
-```
+```bash
 node tools/pipeline/pipeline.mjs spec  <issue>
 node tools/pipeline/pipeline.mjs build <issue> [--pr] [--fresh]
 ```

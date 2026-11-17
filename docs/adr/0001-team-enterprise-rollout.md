@@ -12,7 +12,7 @@ Claude Code Team/Enterprise provides organization-level tools for exactly this.
 Every part of the workflow is designed from the team/organization point of view and mapped to the Team/Enterprise toolset:
 
 | Need | Tool |
-|---|---|
+| --- | --- |
 | Same rules and guardrails for everyone (permissions, deny list, hooks, allowed MCP servers) | Managed settings (server-managed or file-based), managed MCP |
 | Share agents, skills, hooks and commands across teams | Internal plugin marketplace + org plugin allowlist |
 | Shared, versioned project context | `CLAUDE.md` / `.claude/` / `.mcp.json` committed to the repo |
