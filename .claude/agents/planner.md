@@ -22,6 +22,6 @@ Write `$PIPELINE_WORK_DIR/plan.md` with:
 - Tests to add: name, project, and what each proves against the acceptance criteria.
 - How to verify: the exact `dotnet build` / `dotnet test` commands, limited to the affected projects (see CLAUDE.md "Commands" for the right filter option).
 
-Stay inside the spec's scope and its "Out of scope" section. No drive-by refactors. You may write only under the work directory; do not modify code.
+Stay inside the spec's scope and its "Out of scope" section. Items under the spec's "Human after merge" are for a person after the merge: plan no steps for them. No drive-by refactors. You may write only under the work directory; do not modify code.
 
 When done, reply with only the path of plan.md.

@@ -12,6 +12,13 @@ const lastReview = { findings: [
 ] };
 const lastTests = { green: true, log: "all passed" };
 
+function workDirWithRuns(files) {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "pipe-esc-"));
+  mkdirSync(path.join(dir, "runs"));
+  for (const [name, body] of Object.entries(files)) writeFileSync(path.join(dir, "runs", name), body);
+  return dir;
+}
+
 test("escalation.md has the reviewer's blocking findings, the tests and the implementer's last message", () => {
   const md = escalationMd({ result, lastTests, lastReview, implementerLast: { round: 3, text: "The edit tool refused it: the file is sensitive." } });
   assert.match(md, /Reason: max-rounds/);
@@ -28,20 +35,19 @@ test("escalation.md says so when there is no implementer message", () => {
   assert.match(md, /not available/);
 });
 
-test("lastImplementerMessage reads the highest round from runs/implementer-<k>.json", () => {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "pipe-esc-"));
-  mkdirSync(path.join(dir, "runs"));
-  writeFileSync(path.join(dir, "runs", "implementer-1.json"), JSON.stringify({ result: "round one" }));
-  writeFileSync(path.join(dir, "runs", "implementer-3.json"), JSON.stringify({ result: "round three" }));
-  writeFileSync(path.join(dir, "runs", "implementer-2.json"), JSON.stringify({ result: "round two" }));
-  writeFileSync(path.join(dir, "runs", "reviewer-3.json"), JSON.stringify({ result: "not me" }));
-  assert.deepEqual(lastImplementerMessage(dir), { round: 3, text: "round three" });
+test("lastImplementerMessage reads the given round, not the highest file on disk (a --fresh rerun)", () => {
+  const dir = workDirWithRuns({
+    "implementer-1.json": JSON.stringify({ result: "this run, round one" }),
+    "implementer-3.json": JSON.stringify({ result: "an older run, round three" }),
+  });
+  assert.deepEqual(lastImplementerMessage(dir, 1), { round: 1, text: "this run, round one" });
 });
 
-test("lastImplementerMessage returns null when there is no run log or it is not JSON", () => {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "pipe-esc-"));
-  assert.equal(lastImplementerMessage(dir), null);
-  mkdirSync(path.join(dir, "runs"));
-  writeFileSync(path.join(dir, "runs", "implementer-1.json"), "not json");
-  assert.equal(lastImplementerMessage(dir), null);
+test("lastImplementerMessage falls back to the in-memory result when the log is empty, not JSON or missing", () => {
+  const dir = workDirWithRuns({ "implementer-2.json": "", "implementer-3.json": "not json" });
+  assert.deepEqual(lastImplementerMessage(dir, 2, "killed after 2700000 ms"), { round: 2, text: "killed after 2700000 ms" });
+  assert.deepEqual(lastImplementerMessage(dir, 3, "fallback"), { round: 3, text: "fallback" });
+  assert.deepEqual(lastImplementerMessage(dir, 4, "no log at all"), { round: 4, text: "no log at all" });
+  assert.equal(lastImplementerMessage(dir, 3, ""), null);
+  assert.equal(lastImplementerMessage(dir, undefined, "x"), null);
 });

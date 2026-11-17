@@ -29,7 +29,7 @@ Costs are `total_cost_usd` from the client, a client-side estimate, not a bill.
 
 ## Paths the pipeline cannot change
 
-`lib/protected.mjs` (`PROTECTED_PATHS`, now `.claude/**`). Claude Code denies edits there even under `acceptEdits`. The analyst and planner are told to keep these paths out of scope and to list such changes under `## Human after merge`. `spec` prints a warning when the Scope section names one.
+`lib/protected.mjs` (`PROTECTED_PATHS`, now `.claude/**`). Claude Code denies edits there even under `acceptEdits`. The analyst and planner are told to keep these paths out of scope and to list such changes under `## Human after merge`; the reviewer is told that those items are never blocking. `spec` prints a warning when the spec asks for a protected change outside "Out of scope" and "Human after merge".
 
 ## Requirements
 

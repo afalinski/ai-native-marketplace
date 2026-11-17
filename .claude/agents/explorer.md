@@ -28,7 +28,7 @@ For a service scope, find:
 For a theme scope, answer the theme's questions across services, starting from the cards and opening code only where the cards are not enough.
 
 Rules:
-- Every claim gets an ID and evidence: `[<PREFIX>-<NN>] claim — path/to/File.cs:line`. Use repository-relative paths and line numbers you have actually read.
+- Every claim gets an ID and evidence: `[{PREFIX}-{NN}] claim — path/to/File.cs:line`. Use repository-relative paths and line numbers you have actually read.
 - If you are not sure, put it under "Open questions", not as a claim.
 - Do not modify code. Write only the output file you were given.
 - Follow the structure of `docs/architecture/_card-template.md`.

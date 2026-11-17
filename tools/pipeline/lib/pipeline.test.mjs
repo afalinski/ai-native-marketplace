@@ -245,7 +245,7 @@ test("build: escalation.md carries the implementer's last message from runs/impl
   assert.match(md, /still logs the CVV/);
 });
 
-test("spec: the analyst prompt carries the instruction, and a protected path in Scope is warned about", async () => {
+test("spec: the analyst prompt carries the instruction, and a protected path the spec asks for is warned about", async () => {
   const s = setup({ reviews: [] });
   const inner = s.deps.claude;
   let analystPrompt = null;
@@ -263,4 +263,40 @@ test("spec: the analyst prompt carries the instruction, and a protected path in 
   assert.match(analystPrompt, /\.claude\/\*\*/);
   assert.match(analystPrompt, /## Human after merge/);
   assert.ok(logs.some((m) => /WARNING: .*\.claude\/rules\/ordering\.md/.test(m)), logs.join("\n"));
+});
+
+test("build: the reviewer prompt says Human-after-merge items are never blocking", async () => {
+  const s = setup({ reviews: [review("APPROVE")] });
+  await run(s, ["build", "7"]);
+  const reviewer = s.calls.find((c) => c.role === "reviewer");
+  assert.match(reviewer.prompt, /Human after merge/);
+  assert.match(reviewer.prompt, /never a blocking finding/);
+});
+
+test("build --fresh: escalation.md uses this run's implementer message, not an older run's log", async () => {
+  const s = setup({
+    branchExists: true,
+    reviews: [null, null],
+    implementer: () => ({ ok: true, subtype: "success", sessionId: "impl-1", costUsd: 1, turns: 4, durationMs: 10, structured: null, result: "new run, round 1" }),
+  });
+  mkdirSync(path.join(s.workDir, "runs"), { recursive: true });
+  writeFileSync(path.join(s.workDir, "runs", "implementer-3.json"), JSON.stringify({ result: "OLD run, round 3" }));
+  assert.equal(await run(s, ["build", "7", "--fresh"]), 2);
+  const md = readFileSync(path.join(s.workDir, "escalation.md"), "utf8");
+  assert.match(md, /Reason: reviewer-no-verdict/);
+  assert.match(md, /## Implementer's last message \(round 1\)/);
+  assert.match(md, /new run, round 1/);
+  assert.doesNotMatch(md, /OLD run/);
+});
+
+test("build: a timed-out last implementer round still puts its reason into escalation.md", async () => {
+  const rv = review("CHANGES_REQUESTED", [block]);
+  const s = setup({
+    reviews: [rv, rv, rv],
+    implementer: (n) => n < 3
+      ? { ok: true, subtype: "success", sessionId: "impl-1", costUsd: n, turns: 4, durationMs: 10, structured: null, result: "" }
+      : { ok: false, subtype: "timeout", sessionId: null, costUsd: 0, turns: 0, durationMs: 10, structured: null, result: "killed after 2700000 ms" },
+  });
+  assert.equal(await run(s, ["build", "7"]), 2);
+  assert.match(readFileSync(path.join(s.workDir, "escalation.md"), "utf8"), /round 3\)\n\nkilled after 2700000 ms/);
 });

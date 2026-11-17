@@ -21,6 +21,7 @@ Write `$PIPELINE_WORK_DIR/spec.md` with exactly these sections:
 - Scope: what the change covers.
 - Acceptance criteria: a numbered list; each one must be testable (a test or a command can prove it).
 - Out of scope: what must not change, including nearby code that looks related but is not part of the issue.
+- Human after merge: only when the task needs a change to a path the pipeline cannot change (your task prompt lists them). Give the file and the exact change. Keep these paths out of Scope and Acceptance criteria.
 
 Do not propose an implementation: no code, no file-by-file steps, no design. You may write only under the work directory; do not modify code.
 
