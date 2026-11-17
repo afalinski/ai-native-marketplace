@@ -24,8 +24,9 @@ Basket owns the shopping basket of each authenticated buyer. It stores one baske
 - [BAS-12] Basket is the only service that uses the "redis" resource in the Basket.API code. I did not check other projects for it, see Open questions — `src/Basket.API/Extensions/Extensions.cs:14`
 
 ## Integration events
+
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | OrderStartedIntegrationEvent | Handled | [BAS-13] `src/Basket.API/Extensions/Extensions.cs:19`, `src/Basket.API/IntegrationEvents/EventHandling/OrderStartedIntegrationEventHandler.cs:10-15` |
 | (none) | Published | [BAS-14] Basket.API contains no event publishing code. Ordering publishes the event — `src/Ordering.API/Application/Commands/CreateOrderCommandHandler.cs:32` |
 

@@ -18,8 +18,9 @@ OrderProcessor is a background worker that periodically finds orders still in `S
 - [PRC-06] PaymentProcessor has no storage; AppHost gives it only a RabbitMQ reference — `src/eShop.AppHost/AppHost.cs:53-54`
 
 ## Integration events
+
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | GracePeriodConfirmedIntegrationEvent | Published by OrderProcessor (handled by Ordering.API) | [PRC-07] `src/OrderProcessor/Services/GracePeriodManagerService.cs:56-60`; handler subscription `src/Ordering.API/Extensions/Extensions.cs:55` |
 | OrderStatusChangedToStockConfirmedIntegrationEvent | Handled by PaymentProcessor | [PRC-08] `src/PaymentProcessor/Program.cs:5-6` |
 | OrderPaymentSucceededIntegrationEvent | Published by PaymentProcessor | [PRC-09] `src/PaymentProcessor/IntegrationEvents/EventHandling/OrderStatusChangedToStockConfirmedIntegrationEventHandler.cs:23` |

@@ -12,7 +12,7 @@ The threat this repo cares about: an injected instruction that makes the agent s
 Four layers, each with the gap it leaves:
 
 | Layer | What it stops | Gap |
-|---|---|---|
+| --- | --- | --- |
 | Model and auto mode classifier | Most obvious injections (E9: the model reported the planted text and ran nothing) | Probabilistic, not a control |
 | `permissions.deny` in `.claude/settings.json`: Read/Edit of `.env`, `.env.local`, `*.pfx`; `curl`, `wget`, `Invoke-WebRequest`, `Invoke-RestMethod`, `Start-BitsTransfer` | Built-in file tools, `cat`/`head`/`sed`/redirections on secret files, the network tools by name or path | A command inside `bash -c` (E9), a script that opens files or sockets itself |
 | `guard.mjs` PreToolUse hook on Bash and PowerShell | Any command whose text names a secret file or a network tool, including inside `bash -c`; force push; destructive SQL | A script that reaches the network without naming a tool (`node -e "fetch(...)"`) |

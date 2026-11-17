@@ -7,7 +7,7 @@ Normal path: Submitted -> AwaitingValidation -> StockConfirmed -> Paid -> Shippe
 Cancelled is a side exit.
 
 | Status | Who moves the order out of this status | Integration event that triggers the move | Event Ordering publishes when it enters the status |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Submitted | OrderProcessor finds orders older than the grace period (1 minute, checked every 30 seconds). Ordering.API sets AwaitingValidation. | GracePeriodConfirmedIntegrationEvent (from OrderProcessor) | OrderStatusChangedToSubmittedIntegrationEvent |
 | AwaitingValidation | Catalog.API checks the stock. Ordering.API sets StockConfirmed, or Cancelled if stock is rejected. | OrderStockConfirmedIntegrationEvent or OrderStockRejectedIntegrationEvent (from Catalog.API) | OrderStatusChangedToAwaitingValidationIntegrationEvent |
 | StockConfirmed | PaymentProcessor simulates the payment. Ordering.API sets Paid, or Cancelled if the payment fails. | OrderPaymentSucceededIntegrationEvent or OrderPaymentFailedIntegrationEvent (from PaymentProcessor) | OrderStatusChangedToStockConfirmedIntegrationEvent |

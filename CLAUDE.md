@@ -2,7 +2,7 @@
 
 .NET 10 / Aspire reference app: microservices, RabbitMQ event bus, PostgreSQL, Redis. Mobile clients (`src/ClientApp`, `src/HybridApp`) are out of scope and not in `eShop.Web.slnf`.
 
-# Commands
+## Commands
 - Build: `dotnet build eShop.Web.slnf` (incremental ~11 s)
 - All tests: `dotnet test --solution eShop.Web.slnf` (~2 min; `*.FunctionalTests` need Docker running)
 - One unit test (MSTest, no Docker): `dotnet test --project tests/Basket.UnitTests --filter "Name~GetBasketReturnsEmptyForNoUser"`
@@ -11,10 +11,10 @@
 - Run the app: `aspire run` (needs Docker). E2E: `npm run test:e2e`
 - The test runner is Microsoft.Testing.Platform, and the filter option depends on the framework: MSTest unit projects take `--filter`, xUnit v3 functional projects take `--filter-method` or `--filter-class`. The wrong one prints "Unknown option" or "Zero tests ran".
 
-# Where the map is
+## Where the map is
 Verified architecture notes with `path:line` evidence: `docs/architecture/overview.md` (claim IDs like `ARCH-06`, checked by `docs/architecture/verification.md`). Read the part you need, not the whole file. If the code contradicts a note, trust the code and say so.
 
-# Gotchas (code that misleads)
+## Gotchas (code that misleads)
 - Catalog.API has no authentication, and `AddDefaultAuthentication()` silently registers nothing when the `Identity` config section is missing. Adding `RequireAuthorization()` to Catalog does nothing until `Identity:Url` and `Identity:Audience` are configured (ARCH-04).
 - The mobile BFF route `/api/catalog/{*any}` has no HTTP method restriction, so writes reach Catalog through it (ARCH-01).
 - `POST /api/orders` returns 200 even when the command failed. Do not use the status code to judge success (ARCH-06).
@@ -24,7 +24,7 @@ Verified architecture notes with `path:line` evidence: `docs/architecture/overvi
 - `src/Identity.API/tempkey.jwk` is a developer signing key. Do not copy this pattern (ARCH-09).
 - Building Catalog.API regenerates `src/Catalog.API/Catalog.API.json` and `Catalog.API_v2.json` (OpenAPI). With no API change only line endings differ, yet git lists them as modified: restore them. After an endpoint change their content changes and they belong in the commit. Stage files by name, never `git add -A`.
 
-# Rules
+## Rules
 - Match the existing code style (`.editorconfig`) in the lines you write; leave existing lines alone.
 - Prove a change with a test run, not by reading the diff. Say which command you ran.
 - Integration events from Ordering and Catalog go through the outbox (`IntegrationEventLogEF`), never straight to the bus.

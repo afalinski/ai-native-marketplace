@@ -27,8 +27,9 @@ Identity.API is the OpenID Connect / OAuth2 token server for eShop. It runs Duen
 - [IDN-15] Migrations run automatically at startup and seed two users, `alice` and `bob` — `src/Identity.API/Program.cs:12`, `src/Identity.API/UsersSeed.cs:8,53`
 
 ## Integration events
+
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | none | Neither | [IDN-16] The project references no event bus or RabbitMQ package and AppHost gives it no RabbitMQ reference — `src/Identity.API/Identity.API.csproj:8-21`, `src/eShop.AppHost/AppHost.cs:25-28` |
 
 ## Dependencies

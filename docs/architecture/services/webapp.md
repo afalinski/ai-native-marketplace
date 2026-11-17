@@ -20,8 +20,9 @@ Blazor Server storefront (AdventureWorks) that renders catalog, item, cart, chec
 - [WEB-08] Order-status subscriptions are held in a singleton in-memory dictionary keyed by buyer id (per instance only) — `src/WebApp/Services/OrderStatus/OrderStatusNotificationService.cs:7`
 
 ## Integration events
+
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | OrderStatusChangedToSubmittedIntegrationEvent | Handled | [WEB-09] `src/WebApp/Extensions/Extensions.cs:50` |
 | OrderStatusChangedToAwaitingValidationIntegrationEvent | Handled | [WEB-09] `src/WebApp/Extensions/Extensions.cs:45` |
 | OrderStatusChangedToStockConfirmedIntegrationEvent | Handled | [WEB-09] `src/WebApp/Extensions/Extensions.cs:47` |

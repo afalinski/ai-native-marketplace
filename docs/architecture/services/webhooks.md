@@ -26,8 +26,9 @@ Webhooks.API lets authenticated users register HTTP callback subscriptions for t
 - [WHK-14] WebhookClient keeps received hooks only in an in-memory singleton queue, with no persistence — `src/WebhookClient/Services/HooksRepository.cs:5-12`, `src/WebhookClient/Extensions/Extensions.cs:16`
 
 ## Integration events
+
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | ProductPriceChangedIntegrationEvent | Handled (handler is a no-op) | [WHK-15] `src/Webhooks.API/IntegrationEvents/ProductPriceChangedIntegrationEventHandler.cs:5-8` |
 | OrderStatusChangedToShippedIntegrationEvent | Handled (sends OrderShipped hooks) | [WHK-16] `src/Webhooks.API/IntegrationEvents/OrderStatusChangedToShippedIntegrationEventHandler.cs:8-17` |
 | OrderStatusChangedToPaidIntegrationEvent | Handled (sends OrderPaid hooks) | [WHK-17] `src/Webhooks.API/IntegrationEvents/OrderStatusChangedToPaidIntegrationEventHandler.cs:8-17` |

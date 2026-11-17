@@ -48,7 +48,7 @@ $env:PG_ORDERING_URI = "postgresql://mcp_readonly:$Password@host.docker.internal
 
 $selected = Get-Content -Raw (Join-Path $evalDir 'questions.json') | ConvertFrom-Json
 if ($Questions.Count -gt 0) { $selected = $selected | Where-Object { $Questions -contains $_.id } }
-$template = Get-Content -Raw (Join-Path $evalDir 'prompt.md')
+$template = Get-Content -Raw (Join-Path $evalDir 'prompt.txt')
 
 $allowed = @{
     M0 = 'Read,Grep,Glob'

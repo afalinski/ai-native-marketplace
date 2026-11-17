@@ -21,8 +21,9 @@ Not applicable to this theme. The only "interface" is the event bus contract.
 - [EVT-08] OrderProcessor reads Ordering's `ordering.orders` table directly with raw SQL (a shared-database coupling outside the event contract) — `src/OrderProcessor/Services/GracePeriodOrdersRepository.cs:24-28`
 
 ## Integration events
+
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | OrderStartedIntegrationEvent | Published by Ordering (outbox); handled by Basket (deletes basket) | [EVT-09] `src/Ordering.API/Application/Commands/CreateOrderCommandHandler.cs:32-33`, `src/Basket.API/IntegrationEvents/EventHandling/OrderStartedIntegrationEventHandler.cs:14` |
 | OrderStatusChangedToSubmittedIntegrationEvent | Published by Ordering (outbox); handled by WebApp | [EVT-10] `src/Ordering.API/Application/DomainEventHandlers/ValidateOrAddBuyerAggregateWhenOrderStartedDomainEventHandler.cs:50-51`, `src/WebApp/Extensions/Extensions.cs:50` |
 | GracePeriodConfirmedIntegrationEvent | Published by OrderProcessor (direct); handled by Ordering | [EVT-11] `src/OrderProcessor/Services/GracePeriodManagerService.cs:56-60`, `src/Ordering.API/Extensions/Extensions.cs:55` |
