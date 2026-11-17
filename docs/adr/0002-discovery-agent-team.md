@@ -23,8 +23,9 @@ One agent doing everything is slow, and an agent that wrote a document tends to 
    integration events & data consistency · security & identity across services.
 
 ### Models per role
+
 | Role | Model | Effort | Reason |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | explorer | Sonnet 5.5 | medium | Most tokens are spent here (reading code); fact extraction, not deep reasoning |
 | architect | Opus 5.5 | high | Highest-value judgment; small input (cards only), so a strong model is cheap |
 | critic | Sonnet 5.5 | high | Re-reads code for every claim; high effort to catch subtle errors |

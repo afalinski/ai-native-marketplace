@@ -12,7 +12,7 @@ The spec is `docs/superpowers/specs/2026-11-13-eshop-mcp-server-design.md`. The 
 Where to build it:
 
 | | Option | Trade-off |
-|---|---|---|
+| --- | --- | --- |
 | A (chosen) | Own server `src/eShop.Mcp` inside eShop | Real system and real numbers; more work |
 | B | Separate repo with demo servers | Clean, but a toy, and nothing to measure |
 | C | Only ready-made servers | Fast, but no tool design to show |
@@ -20,7 +20,7 @@ Where to build it:
 How custom it is:
 
 | Level | What | Trade-off |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Domain read tools, resources, prompts over the database | Clear win over generic SQL; read-only and safe |
 | 2 | Level 1 plus actions through eShop services | Business rules run; needs a service token |
 | 3 (chosen) | Level 2 plus one action (`cancel_order`) with human confirmation | Best human-in-the-loop story; needs care with auth, state and the dialog |

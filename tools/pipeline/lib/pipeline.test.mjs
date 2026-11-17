@@ -215,3 +215,88 @@ test("build --fresh rerun does not log spec-edited twice for the same edited spe
   const edits = JSON.parse(readFileSync(path.join(s.workDir, "interventions.json"), "utf8")).filter((i) => i.kind === "spec-edited");
   assert.equal(edits.length, 1);
 });
+
+test("build: the planner prompt carries the protected-paths instruction (E13)", async () => {
+  const s = setup({ reviews: [review("APPROVE")] });
+  await run(s, ["build", "7"]);
+  const planner = s.calls.find((c) => c.role === "planner");
+  assert.match(planner.prompt, /\.claude\/\*\*/);
+  assert.match(planner.prompt, /## Human after merge/);
+});
+
+test("build: escalation.md carries the implementer's last message from runs/implementer-<k>.json (E13)", async () => {
+  const rv = review("CHANGES_REQUESTED", [block]);
+  const s = setup({ reviews: [rv, rv, rv] });
+  const inner = s.deps.claude;
+  s.deps.claude = async (o) => {
+    const r = await inner(o);
+    if (o.role === "implementer") {
+      const text = `round ${o.logPath.match(/implementer-(\d+)/)[1]}: the edit tool refused .claude/rules/ordering.md`;
+      mkdirSync(path.dirname(o.logPath), { recursive: true });
+      writeFileSync(o.logPath, JSON.stringify({ result: text }));
+      return { ...r, result: text };
+    }
+    return r;
+  };
+  assert.equal(await run(s, ["build", "7"]), 2);
+  const md = readFileSync(path.join(s.workDir, "escalation.md"), "utf8");
+  assert.match(md, /## Implementer's last message \(round 3\)/);
+  assert.match(md, /round 3: the edit tool refused \.claude\/rules\/ordering\.md/);
+  assert.match(md, /still logs the CVV/);
+});
+
+test("spec: the analyst prompt carries the instruction, and a protected path the spec asks for is warned about", async () => {
+  const s = setup({ reviews: [] });
+  const inner = s.deps.claude;
+  let analystPrompt = null;
+  s.deps.claude = async (o) => {
+    if (o.role === "analyst") {
+      analystPrompt = o.prompt;
+      writeFileSync(path.join(o.workDir, "spec.md"), "# Spec\n## Scope\n- Update `.claude/rules/ordering.md:12`.\n## Acceptance criteria\n- x\n");
+      return { ok: true, subtype: "success", sessionId: "a", costUsd: 0.2, turns: 2, durationMs: 10, structured: null, result: "" };
+    }
+    return inner(o);
+  };
+  const logs = [];
+  const code = await main({ argv: ["spec", "7"], repo: s.repo, deps: s.deps, log: (m) => logs.push(m) });
+  assert.equal(code, 0);
+  assert.match(analystPrompt, /\.claude\/\*\*/);
+  assert.match(analystPrompt, /## Human after merge/);
+  assert.ok(logs.some((m) => /WARNING: .*\.claude\/rules\/ordering\.md/.test(m)), logs.join("\n"));
+});
+
+test("build: the reviewer prompt says Human-after-merge items are never blocking", async () => {
+  const s = setup({ reviews: [review("APPROVE")] });
+  await run(s, ["build", "7"]);
+  const reviewer = s.calls.find((c) => c.role === "reviewer");
+  assert.match(reviewer.prompt, /Human after merge/);
+  assert.match(reviewer.prompt, /never a blocking finding/);
+});
+
+test("build --fresh: escalation.md uses this run's implementer message, not an older run's log", async () => {
+  const s = setup({
+    branchExists: true,
+    reviews: [null, null],
+    implementer: () => ({ ok: true, subtype: "success", sessionId: "impl-1", costUsd: 1, turns: 4, durationMs: 10, structured: null, result: "new run, round 1" }),
+  });
+  mkdirSync(path.join(s.workDir, "runs"), { recursive: true });
+  writeFileSync(path.join(s.workDir, "runs", "implementer-3.json"), JSON.stringify({ result: "OLD run, round 3" }));
+  assert.equal(await run(s, ["build", "7", "--fresh"]), 2);
+  const md = readFileSync(path.join(s.workDir, "escalation.md"), "utf8");
+  assert.match(md, /Reason: reviewer-no-verdict/);
+  assert.match(md, /## Implementer's last message \(round 1\)/);
+  assert.match(md, /new run, round 1/);
+  assert.doesNotMatch(md, /OLD run/);
+});
+
+test("build: a timed-out last implementer round still puts its reason into escalation.md", async () => {
+  const rv = review("CHANGES_REQUESTED", [block]);
+  const s = setup({
+    reviews: [rv, rv, rv],
+    implementer: (n) => n < 3
+      ? { ok: true, subtype: "success", sessionId: "impl-1", costUsd: n, turns: 4, durationMs: 10, structured: null, result: "" }
+      : { ok: false, subtype: "timeout", sessionId: null, costUsd: 0, turns: 0, durationMs: 10, structured: null, result: "killed after 2700000 ms" },
+  });
+  assert.equal(await run(s, ["build", "7"]), 2);
+  assert.match(readFileSync(path.join(s.workDir, "escalation.md"), "utf8"), /round 3\)\n\nkilled after 2700000 ms/);
+});

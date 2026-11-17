@@ -38,7 +38,7 @@ against the final answer (`match` still applies). Use it for numbers, so that `1
 `14.55`. Example: `"expected": ["(?<![0-9.,])14\.50?(?![0-9])"]`. Questions without the field use plain substrings.
 
 | id | Verifying query | Result |
-|----|-----------------|--------|
+| ---- | ----------------- | -------- |
 | q01 | catalogdb: `SELECT "Id","Name" FROM "Catalog" WHERE "AvailableStock" = 0;` | 9002 Summit Alpine Gaiters |
 | q02 | catalogdb: `SELECT "Price" FROM "Catalog" WHERE "Name" = 'Trail Guide Map';` | 14.50 |
 | q03 | orderingdb: `SELECT "OrderStatus" FROM ordering.orders WHERE "Id" = 9007;` | AwaitingValidation |
@@ -52,7 +52,7 @@ against the final answer (`match` still applies). Use it for numbers, so that `1
 
 ## Running the eval (E10)
 
-Files: `run-eval.ps1` (runner), `grade.ps1` (grader), `prompt.md` (same prompt for every run), `config/m0.json`, `m1.json`, `m2.json`, `test-fixtures/` (grader test).
+Files: `run-eval.ps1` (runner), `grade.ps1` (grader), `prompt.txt` (same prompt for every run), `config/m0.json`, `m1.json`, `m2.json`, `test-fixtures/` (grader test).
 
 ```powershell
 dotnet run --project src/eShop.AppHost -- --McpEval=true      # keep running

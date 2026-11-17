@@ -70,7 +70,7 @@ claude mcp list
 ## Tools, resources and prompts
 
 | Kind | Name | Hints | What it does |
-|------|------|-------|--------------|
+| ------ | ------ | ------- | -------------- |
 | Tool | `search_catalog` | ReadOnly | Search products by text, brand, type, max price, stock. Descriptions come back as `untrusted_text`. |
 | Tool | `get_order` | ReadOnly | One order with lines, total, "can it be cancelled?" and the next step. |
 | Tool | `find_orders` | ReadOnly | Find orders by status, buyer name or minimum age. |
@@ -88,17 +88,17 @@ List tools return at most 50 rows (default 20) and say when the result was cut.
 
 Reads:
 
-1. **Read-only database role.** The server connects as `mcp_readonly`. At startup a guard checks the role: it is not a superuser, it has no INSERT, UPDATE, DELETE or TRUNCATE on any table, and it is not a member of `pg_write_all_data`. If a check fails, the server does not start.
-2. **Safe queries.** Each query runs in a read-only transaction with a 5 second statement timeout and a row limit. The result says when it was cut. All values are SQL parameters.
-3. **Untrusted text.** Free text from the database (product descriptions) is returned in a field named `untrusted_text`. The tool description tells the model not to follow instructions inside it.
+- **1. Read-only database role.** The server connects as `mcp_readonly`. At startup a guard checks the role: it is not a superuser, it has no INSERT, UPDATE, DELETE or TRUNCATE on any table, and it is not a member of `pg_write_all_data`. If a check fails, the server does not start.
+- **2. Safe queries.** Each query runs in a read-only transaction with a 5 second statement timeout and a row limit. The result says when it was cut. All values are SQL parameters.
+- **3. Untrusted text.** Free text from the database (product descriptions) is returned in a field named `untrusted_text`. The tool description tells the model not to follow instructions inside it.
 
 Action:
 
-4. **Cancel only through the API.** `cancel_order` never touches the database. It calls Ordering.API with a client-credentials token (client `eshop-mcp`, scope `orders`). The domain rules run as normal.
-5. **Elicitation.** Before the call, the server asks the human to confirm. The dialog shows the order id, buyer, items, total, status and the reason.
-6. **Signed state.** The question carries a `requestState`. It is signed, valid for 5 minutes, and bound to the order id and the reason. An answer without a matching state is refused, with no database read and no API call.
-7. **Re-check.** After the yes, the server loads the order again. If the order can no longer be cancelled (for example it is now Paid), nothing is sent.
-8. **Client permission prompt.** `cancel_order` is not in the allow list of `.claude/settings.json`, so the client asks first.
+- **4. Cancel only through the API.** `cancel_order` never touches the database. It calls Ordering.API with a client-credentials token (client `eshop-mcp`, scope `orders`). The domain rules run as normal.
+- **5. Elicitation.** Before the call, the server asks the human to confirm. The dialog shows the order id, buyer, items, total, status and the reason.
+- **6. Signed state.** The question carries a `requestState`. It is signed, valid for 5 minutes, and bound to the order id and the reason. An answer without a matching state is refused, with no database read and no API call.
+- **7. Re-check.** After the yes, the server loads the order again. If the order can no longer be cancelled (for example it is now Paid), nothing is sent.
+- **8. Client permission prompt.** `cancel_order` is not in the allow list of `.claude/settings.json`, so the client asks first.
 
 ## Threat model
 

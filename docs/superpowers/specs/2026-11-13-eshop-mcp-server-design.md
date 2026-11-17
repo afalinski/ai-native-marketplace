@@ -57,7 +57,7 @@ The owner must be able to retell every decision in simple English (B1), so every
 ### 6.1 Where to build (picked 2026-11-13)
 
 | | Approach | Trade-off |
-|---|---|---|
+| --- | --- | --- |
 | **A (chosen)** | Own server `src/eShop.Mcp` inside eShop | Real system, real numbers; longer to set up |
 | B | Separate repo with demo servers | Clean but a toy, no measurement |
 | C | Only ready-made servers | Fast, but no tool design — weak story |
@@ -65,7 +65,7 @@ The owner must be able to retell every decision in simple English (B1), so every
 ### 6.2 How "custom" (picked 2026-11-13: level 3)
 
 | Level | What | Trade-off |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Domain read tools + resources + prompts over the DB | Clear win over generic SQL; read-only, safe |
 | 2 | + actions/rules through eShop services | Respects business logic; needs a service token |
 | **3 (chosen)** | + one action (`cancel_order`) with human confirmation | Strongest AI story (human-in-the-loop); needs care: auth, idempotency, elicitation support |

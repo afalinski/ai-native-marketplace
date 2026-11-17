@@ -12,7 +12,7 @@ ADR-002 left one debt: it says agents write only under `docs/architecture/`, but
 Four controls, each with the simplest mechanism that can do the job.
 
 | Rule | Mechanism | Why this one |
-|---|---|---|
+| --- | --- | --- |
 | Never read or edit `.env`, `.env.local`, `*.pfx` | `permissions.deny` in `.claude/settings.json` | A path rule needs no code |
 | No force push, no destructive SQL, no database drop | `PreToolUse` hook, `guard.mjs`, matcher `Bash\|PowerShell` | Needs regex over the command text |
 | Discovery agents write only under `docs/architecture/` | `PreToolUse` hook, `docs-only.mjs`, in each agent's frontmatter | Scoped to those agents, so it does not limit anyone else |

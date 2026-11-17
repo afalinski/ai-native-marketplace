@@ -24,8 +24,9 @@ Owns the order lifecycle: creating orders from a basket checkout, tracking statu
 - [ORD-12] Idempotency records are stored by request ID in `ClientRequest` through `RequestManager` — `src/Ordering.Infrastructure/Idempotency/RequestManager.cs:13-37`
 
 ## Integration events
+
 | Event | Published / Handled | Evidence |
-|---|---|---|
+| --- | --- | --- |
 | OrderStartedIntegrationEvent | Published | [ORD-13] `src/Ordering.API/Application/Commands/CreateOrderCommandHandler.cs:32-33` |
 | OrderStatusChangedToSubmittedIntegrationEvent | Published | [ORD-14] `src/Ordering.API/Application/DomainEventHandlers/ValidateOrAddBuyerAggregateWhenOrderStartedDomainEventHandler.cs:50-51` |
 | OrderStatusChangedToAwaitingValidationIntegrationEvent | Published | [ORD-14] `src/Ordering.API/Application/DomainEventHandlers/OrderStatusChangedToAwaitingValidationDomainEventHandler.cs:33-34` |

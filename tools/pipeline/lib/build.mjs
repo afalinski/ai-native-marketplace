@@ -6,6 +6,8 @@ import { mapTestProjects } from "./testrun.mjs";
 import { renderReviewMd, runRounds } from "./loop.mjs";
 import { renderReport } from "./report.mjs";
 import { addIntervention, readInterventions, roleEntry, sha256, workDirFor } from "./workdir.mjs";
+import { protectedPathsInstruction, reviewerProtectedPathsInstruction } from "./protected.mjs";
+import { escalationMd, lastImplementerMessage } from "./escalation.mjs";
 
 const SCHEMA_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../review.schema.json");
 const write = (p, text) => {
@@ -24,25 +26,6 @@ class EnvironmentError extends Error {}
 function readSpecRun(workDir) {
   const p = path.join(workDir, "spec-run.json");
   return existsSync(p) ? [JSON.parse(readFileSync(p, "utf8"))] : [];
-}
-
-function escalationMd({ result, lastTests, lastReview }) {
-  const open = (lastReview?.findings ?? []).filter((f) => f.severity === "blocking");
-  return [
-    "# Escalation",
-    "",
-    `Reason: ${result.reason}`,
-    `Rounds used: ${result.rounds}`,
-    "",
-    "## Open blocking findings",
-    "",
-    open.length ? open.map((f) => `- \`${f.file}:${f.line}\` [${f.rule}] ${f.summary}`).join("\n") : "none (see reason)",
-    "",
-    "## Tests",
-    "",
-    lastTests ? `${lastTests.green ? "green" : "red"}\n\n\`\`\`\n${lastTests.log}\n\`\`\`` : "not run",
-    "",
-  ].join("\n");
 }
 
 // `build <n>`: plan -> rounds -> docs -> commit -> report (-> push + PR). Returns an exit code (0 / 1 / 2).
@@ -115,7 +98,7 @@ export async function build({ n, flags, repo, deps, log }) {
   // planner
   const planPath = path.join(workDir, "plan.md");
   const plan = await callRole("planner", 0, {
-    prompt: `Work directory (absolute): ${workDir}\nRead ${specPath} and write ${planPath}.`,
+    prompt: `Work directory (absolute): ${workDir}\nRead ${specPath} and write ${planPath}.\n${protectedPathsInstruction()}`,
     permissionMode: "acceptEdits",
   });
   record("planner", 0, plan);
@@ -132,6 +115,7 @@ export async function build({ n, flags, repo, deps, log }) {
   }
 
   let implSession = null;
+  let lastImplementer = null; // { round, text } of this build's last implementer run
   let prevCumulative = null;
   let lastTests = null;
   let noTestsRan = false;
@@ -161,6 +145,7 @@ ${fix}`;
       allowedTools: IMPLEMENTER_ALLOWED_TOOLS,
     });
     if (r.sessionId) implSession = r.sessionId;
+    lastImplementer = { round: k, text: r.result ?? "" };
     // Cost is counted whenever the run reported one (an error_max_turns run still spent money).
     // The delta applies only to the same resumed session; any other session starts from 0.
     if (r.costUsd > 0) {
@@ -206,6 +191,7 @@ ${fix}`;
           `- plan: ${planPath}`,
           `- diff: ${path.join(rd, "diff.patch")}`,
           `- tests: ${path.join(rd, "tests.txt")}`,
+          reviewerProtectedPathsInstruction(),
           `Write your verdict as structured output.`,
         ].join("\n"),
         schemaPath: SCHEMA_PATH,
@@ -261,7 +247,7 @@ ${fix}`;
   };
 
   if (result.outcome !== "success") {
-    write(path.join(workDir, "escalation.md"), escalationMd({ result, lastTests, lastReview: lastVerdict }));
+    write(path.join(workDir, "escalation.md"), escalationMd({ result, lastTests, lastReview: lastVerdict, implementerLast: lastImplementerMessage(workDir, lastImplementer?.round, lastImplementer?.text) }));
     addIntervention(workDir, "escalation", `${result.reason} after ${result.rounds} round(s)`);
     finish("escalated");
     log(`escalated (${result.reason}) after ${result.rounds} round(s); see ${path.join(workDir, "escalation.md")}`);
