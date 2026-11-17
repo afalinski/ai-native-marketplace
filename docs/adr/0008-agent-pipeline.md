@@ -28,7 +28,19 @@ Build the pipeline as code that calls `claude -p` with a role. Four decisions of
 - **Writing roles need `--permission-mode acceptEdits` under `-p`.** The `pipeline-write` hook is the path boundary.
 - **Two human gates stay.** The spec approval and the merge. `build` counts as approval of the spec, and a changed spec hash is recorded as an intervention.
 - **No agent test ideas.** The tests are only as good as the implementer's and the reviewer's judgement.
-- Details: `docs/superpowers/specs/2026-11-16-agent-pipeline-design.md`, `docs/experiments.md` (E12).
+- Details: `docs/superpowers/specs/2026-11-16-agent-pipeline-design.md`, `docs/experiments.md` (E12, E13).
+
+## Amendment (2026-11-17): CI review uses the subscription token
+- **Change to the second decision.** The PR review workflow (`.github/workflows/claude-code-review.yml`) authenticates with `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, not with a separate API key. Andrei decided this to avoid paying for API credits on top of his Pro subscription.
+- **Accepted costs.**
+  - Reviews draw on his Pro subscription limits, the same ones his local sessions use.
+  - The token is personal, so this setup is valid for this pet project, not for a team.
+  - There is no spending limit separate from the subscription. `timeout-minutes` and `concurrency` in the workflow bound each run.
+- **Way back.** For a team rollout, use a Claude Console API key with a spending limit: change one input to `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}`.
+- **Status (2026-11-17): blocked upstream.**
+  - Every CI run stops on the first request: `is_error`, 1 turn, $0, about 2 s after start. That happened with a new token, and again after Pro credits were added.
+  - The same signature is reported in the open issue [anthropics/claude-code-action#1614](https://github.com/anthropics/claude-code-action/issues/1614), for Pro, Max and Team accounts. It shows as a 401 "OAuth access token is invalid" in CI, while the same account works locally. There is no maintainer fix yet.
+  - Andrei decided to keep the workflow and the secret as they are, and to review PRs locally with the `code-review` plugin (`/code-review <PR>`) until the issue is fixed or a Console API key is funded.
 
 ## Why
 <!-- Andrei writes this section -->

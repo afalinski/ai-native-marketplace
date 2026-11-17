@@ -238,3 +238,34 @@ Conclusion: when `--agent` is re-passed on `--resume`, the resumed session is of
   - Catalog.FunctionalTests ran with no Catalog change: the build regenerated the Catalog OpenAPI files, and the tests are mapped before line endings are restored. That cost about 30 s; the fix is to restore before mapping.
   - The reviewer's one non-blocking finding was valid: the last-4-digits case is not tested, and there is no `dotnet format` result.
 - Conclusion: the pipeline works end to end on a small task, and the stop, the round limit and the metrics live in code. One calibration run says little about the review loop: rounds 2–3 and escalation are so far exercised only by unit tests. Next: restore line endings before mapping tests; run a task where the trap is in scope; then the CI phase (`agent:spec` / `agent:build`).
+
+## E13. Agent pipeline on a medium task, issue #4 / ARCH-06 (2026-11-16)
+- Hypothesis: on a task that touches the API contract, tests and the WebApp client, the loop runs more than one round and either converges or escalates in a way a human can act on. Rounds were not tuned.
+- What I did:
+  - Fixed the E12 line-ending bug first: candidates now come from `git status`; under `core.autocrlf=true`, `git diff --name-only` misses them.
+  - Opened issue #4, ran `spec 4` and approved the spec without edits. Its criterion 8 (`aspire run` / e2e) was known not to be checkable inside the loop.
+  - Ran `build 4` without `--pr`.
+- Result: escalated after 3 rounds; 17 min and $3.98 including spec (client-side estimate).
+  - **Round 1 → 2 was a real fix loop.** Two functional tests were red, including the new valid-create test, which returned 500. The implementer found the cause: in the functional test host, `IntegrationEventLogService` looks up event types in the test assembly. It fixed the cause, and round 2 was all green.
+  - **Rounds 2 and 3 were blocked by one line.** The spec required updating `.claude/rules/ordering.md`. Claude Code treats `.claude/` as sensitive, so the Edit was denied even under `acceptEdits` (`permission_denials` in `runs/implementer-2.json` and `-3.json`). The implementer did not work around it with a shell edit and asked a human to make the change. Round 3 cost only $0.06 because there was nothing else it was allowed to do.
+  - **The reviewer was consistent.** It kept the one unmet spec item blocking, matched its verdict to its findings every round, and never made the unverifiable criterion 8 blocking.
+- Conclusion: the loop and the stop work as designed: a real fix in round 2, and a hard stop instead of a workaround. The escalation was structural, not a quality problem: the analyst put a file into scope that the pipeline may not edit. Two gaps follow:
+  1. The analyst and planner must know which paths the pipeline cannot change (`.claude/**`). Either keep such paths out of scope or mark them "human after merge".
+  2. `escalation.md` lists only the reviewer's finding. The implementer's explanation ("the edit tool refused, file is sensitive") was only in `runs/`. The escalation report should include the implementer's last message.
+- Next: decide what to do with the escalated worktree (a human applies the one-line edit, then commit and PR, which counts as an intervention), then fix both gaps.
+- Decision (Andrei, 2026-11-16): option (b). The escalated work is closed as the experiment's result, with no PR. The worktree and `agent/4` were removed; the artifacts stay in `.work/4/` (gitignored). Issue #4 stays open: ARCH-06 is still unfixed in the code.
+
+## E14. AI review in CI with a Pro subscription token (2026-11-17)
+- Hypothesis: `anthropics/claude-code-action@v1` with the `code-review` plugin can review every PR, authenticated with `claude setup-token` from a personal Pro subscription, at no extra cost.
+- What I did:
+  - Added `.github/workflows/claude-code-review.yml` and installed the Claude GitHub App.
+  - Added the secret `CLAUDE_CODE_OAUTH_TOKEN`.
+  - Opened PR #5 and reran the review several times.
+- Result:
+  - **Run 1 skipped itself.** The action runs only when the same workflow file is on the default branch (`main` of the fork). Fixed with a one-file PR #6 to `main`.
+  - **Every run after that failed** about 2 s after start: `is_error`, 1 turn, $0, no model usage. This held with a re-entered token and after Andrei bought extra Pro credits.
+  - **The action hides the error text,** and a debug rerun does not show it either.
+  - **The same signature is an open upstream issue,** [anthropics/claude-code-action#1614](https://github.com/anthropics/claude-code-action/issues/1614). It hits Pro, Max and Team accounts and shows as a 401 "OAuth access token is invalid" in CI, while the same account works locally. Several reporters moved to Console API keys.
+- Conclusion: the approach is documented but not reliable today. For a team, the Console API key (ADR-008 decision 2) stays the right choice. Andrei kept the workflow and secret, and reviews PRs locally with `/code-review <PR>` until #1614 is fixed or a Console key is funded. Lessons:
+  - A workflow change must reach the default branch before it takes effect.
+  - "Success" in the Actions UI can hide a skipped or failed review.
