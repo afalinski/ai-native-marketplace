@@ -6,7 +6,7 @@ import { mapTestProjects } from "./testrun.mjs";
 import { renderReviewMd, runRounds } from "./loop.mjs";
 import { renderReport } from "./report.mjs";
 import { addIntervention, readInterventions, roleEntry, sha256, workDirFor } from "./workdir.mjs";
-import { protectedPathsInstruction } from "./protected.mjs";
+import { protectedPathsInstruction, reviewerProtectedPathsInstruction } from "./protected.mjs";
 import { escalationMd, lastImplementerMessage } from "./escalation.mjs";
 
 const SCHEMA_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../review.schema.json");
@@ -115,6 +115,7 @@ export async function build({ n, flags, repo, deps, log }) {
   }
 
   let implSession = null;
+  let lastImplementer = null; // { round, text } of this build's last implementer run
   let prevCumulative = null;
   let lastTests = null;
   let noTestsRan = false;
@@ -144,6 +145,7 @@ ${fix}`;
       allowedTools: IMPLEMENTER_ALLOWED_TOOLS,
     });
     if (r.sessionId) implSession = r.sessionId;
+    lastImplementer = { round: k, text: r.result ?? "" };
     // Cost is counted whenever the run reported one (an error_max_turns run still spent money).
     // The delta applies only to the same resumed session; any other session starts from 0.
     if (r.costUsd > 0) {
@@ -189,6 +191,7 @@ ${fix}`;
           `- plan: ${planPath}`,
           `- diff: ${path.join(rd, "diff.patch")}`,
           `- tests: ${path.join(rd, "tests.txt")}`,
+          reviewerProtectedPathsInstruction(),
           `Write your verdict as structured output.`,
         ].join("\n"),
         schemaPath: SCHEMA_PATH,
@@ -244,7 +247,7 @@ ${fix}`;
   };
 
   if (result.outcome !== "success") {
-    write(path.join(workDir, "escalation.md"), escalationMd({ result, lastTests, lastReview: lastVerdict, implementerLast: lastImplementerMessage(workDir) }));
+    write(path.join(workDir, "escalation.md"), escalationMd({ result, lastTests, lastReview: lastVerdict, implementerLast: lastImplementerMessage(workDir, lastImplementer?.round, lastImplementer?.text) }));
     addIntervention(workDir, "escalation", `${result.reason} after ${result.rounds} round(s)`);
     finish("escalated");
     log(`escalated (${result.reason}) after ${result.rounds} round(s); see ${path.join(workDir, "escalation.md")}`);

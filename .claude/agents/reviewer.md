@@ -17,7 +17,7 @@ Judge the diff against the spec and the CLAUDE.md rules. Do not run anything.
 
 Mark a finding `blocking` only if it breaks an acceptance criterion, a CLAUDE.md rule, correctness, or a test. Everything else is `non-blocking`.
 
-Do not demand changes outside the spec's scope. Code that the spec lists under "Out of scope", or that the issue does not concern, must not produce a blocking finding, even if it looks imperfect. At most mention it as non-blocking.
+Do not demand changes outside the spec's scope. Code that the spec lists under "Out of scope", or that the issue does not concern, must not produce a blocking finding, even if it looks imperfect. At most mention it as non-blocking. The same holds for items under the spec's "Human after merge": a person makes them after the merge, so their absence from the diff is never blocking.
 
 Your final output is a JSON verdict (the format is enforced for you):
 - `verdict`: `APPROVE` if there are no blocking findings, otherwise `CHANGES_REQUESTED`.

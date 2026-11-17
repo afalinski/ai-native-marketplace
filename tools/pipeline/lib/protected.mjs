@@ -1,45 +1,55 @@
 // Paths the pipeline cannot change (E13): Claude Code treats `.claude/` as sensitive, so an Edit there
-// is denied even under acceptEdits. This list is the single source: the analyst and planner prompts are
-// built from it, and `spec` checks the Scope section against it.
+// is denied even under acceptEdits. This list is the single source: the analyst, planner and reviewer
+// prompts are built from it, and `spec` checks the spec against it.
+// Entries have the form "<directory>/**"; a path is protected when any of its segments is that directory
+// (so `.claude`, `.claude/rules/x.md`, `src/X/.claude/settings.json` and absolute paths all match).
 export const PROTECTED_PATHS = [".claude/**"];
 
-const norm = (p) => String(p).replace(/\\/g, "/").replace(/^\.\//, "");
+const PROTECTED_DIRS = PROTECTED_PATHS.map((p) => p.replace(/\/\*\*$/, ""));
+const HUMAN_SECTION = "Human after merge";
 
-function globToRegExp(glob) {
-  const re = glob
-    .split("**")
-    .map((part) => part.split("*").map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]*"))
-    .join(".*");
-  return new RegExp(`^${re}$`);
-}
-
-const PATTERNS = PROTECTED_PATHS.map(globToRegExp);
+const segments = (p) => String(p).replace(/\\/g, "/").split("/").filter(Boolean);
 
 export function isProtectedPath(p) {
-  const f = norm(p);
-  return PATTERNS.some((re) => re.test(f));
+  return segments(p).some((s) => PROTECTED_DIRS.includes(s));
 }
 
+const list = () => PROTECTED_PATHS.map((p) => `\`${p}\``).join(", ");
+
+// For the analyst and the planner.
 export function protectedPathsInstruction() {
-  const list = PROTECTED_PATHS.map((p) => `\`${p}\``).join(", ");
   return [
-    `The pipeline cannot change these paths: ${list}. Claude Code denies edits there.`,
-    "Do not put a change to them in scope or in a plan step.",
-    "If the task needs one, list it in a separate section `## Human after merge`: the file and the exact change, for a person to make after the merge.",
+    `The pipeline cannot change these paths: ${list()}. Claude Code denies edits there.`,
+    "Do not put a change to them in scope, in an acceptance criterion or in a plan step.",
+    `If the task needs one, list it in a separate section \`## ${HUMAN_SECTION}\`: the file and the exact change, for a person to make after the merge.`,
   ].join(" ");
 }
 
-// Protected paths mentioned inside the `## Scope` section of a spec (path-like tokens only).
-export function protectedPathsInScope(specText) {
-  const lines = String(specText).split(/\r?\n/);
-  const start = lines.findIndex((l) => /^##\s+Scope\b/i.test(l));
-  if (start < 0) return [];
-  const end = lines.findIndex((l, i) => i > start && /^##\s/.test(l));
-  const scope = lines.slice(start + 1, end < 0 ? undefined : end).join("\n");
+// For the reviewer.
+export function reviewerProtectedPathsInstruction() {
+  return [
+    `The pipeline cannot change ${list()}.`,
+    `Items in the spec's \`## ${HUMAN_SECTION}\` section, and any change to those paths, are made by a person after the merge.`,
+    "Their absence from the diff is never a blocking finding.",
+  ].join(" ");
+}
+
+// Protected paths that the spec asks the pipeline to deliver: path-like tokens in every section except
+// "Out of scope" and "Human after merge" (mentions there are expected).
+export function protectedPathsInSpec(specText) {
   const found = new Set();
-  for (const m of scope.matchAll(/[\w./\\-]*\.claude[\\/][\w./\\-]+/g)) {
-    const p = norm(m[0]).replace(/:\d+(-\d+)?$/, "").replace(/[.,;:]+$/, "");
-    if (isProtectedPath(p)) found.add(p);
+  let skip = false;
+  for (const line of String(specText).split(/\r?\n/)) {
+    const h = /^#{1,6}\s+(.*)$/.exec(line);
+    if (h) {
+      skip = /^(out of scope|human after merge)\b/i.test(h[1].trim());
+      continue;
+    }
+    if (skip) continue;
+    for (const m of line.matchAll(/[^\s`'"()<>[\]]*\.claude(?:[\\/][^\s`'"()<>[\]]*)?/g)) {
+      const p = m[0].replace(/:\d+(-\d+)?$/, "").replace(/[.,;:]+$/, "");
+      if (isProtectedPath(p)) found.add(p.replace(/\\/g, "/"));
+    }
   }
   return [...found];
 }

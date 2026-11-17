@@ -1,23 +1,23 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-// The implementer's last message, from the highest round in runs/implementer-<k>.json (E13: the reason
-// for the escalation was there, not in the reviewer's findings). Null if there is no readable log.
-export function lastImplementerMessage(workDir) {
-  const dir = path.join(workDir, "runs");
-  if (!existsSync(dir)) return null;
-  const runs = readdirSync(dir)
-    .map((f) => /^implementer-(\d+)\.json$/.exec(f))
-    .filter(Boolean)
-    .map((m) => ({ round: Number(m[1]), file: path.join(dir, m[0]) }))
-    .sort((a, b) => b.round - a.round);
-  if (!runs.length) return null;
-  try {
-    const j = JSON.parse(readFileSync(runs[0].file, "utf8"));
-    return typeof j?.result === "string" && j.result.trim() ? { round: runs[0].round, text: j.result.trim() } : null;
-  } catch {
-    return null;
+// The implementer's last message (E13: the reason for the escalation was there, not in the reviewer's
+// findings). Read from runs/implementer-<round>.json of this build's last implementer round. When that log
+// is missing, unreadable or has no `result` (a timeout leaves it empty), use the result already in memory.
+export function lastImplementerMessage(workDir, round, fallbackText = "") {
+  if (!round) return null;
+  const file = path.join(workDir, "runs", `implementer-${round}.json`);
+  let text = "";
+  if (existsSync(file)) {
+    try {
+      const j = JSON.parse(readFileSync(file, "utf8"));
+      if (typeof j?.result === "string") text = j.result.trim();
+    } catch {
+      // unreadable log: fall back below
+    }
   }
+  if (!text) text = String(fallbackText ?? "").trim();
+  return text ? { round, text } : null;
 }
 
 export function escalationMd({ result, lastTests, lastReview, implementerLast }) {
@@ -34,7 +34,7 @@ export function escalationMd({ result, lastTests, lastReview, implementerLast })
     "",
     implementerLast ? `## Implementer's last message (round ${implementerLast.round})` : "## Implementer's last message",
     "",
-    implementerLast ? implementerLast.text : "not available (no readable runs/implementer-<k>.json)",
+    implementerLast ? implementerLast.text : "not available (no implementer output for the last round)",
     "",
     "## Tests",
     "",

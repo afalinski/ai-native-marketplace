@@ -100,7 +100,7 @@ Hypothesis (written before the pilot ran, and before the domain tools were desig
 - M0 (no MCP) cannot answer. The good result for M0 is to say so (`CANNOT_ANSWER`), not to guess.
 
 Setup:
-- Model: Sonnet, headless `claude -p`, same prompt for every run (`eval/mcp/prompt.md`: answer with the tools you have, or start with `CANNOT_ANSWER`).
+- Model: Sonnet, headless `claude -p`, same prompt for every run (`eval/mcp/prompt.txt`, named `prompt.md` until 2026-11-17: answer with the tools you have, or start with `CANNOT_ANSWER`).
 - 10 questions with known answers (`eval/mcp/questions.json`), written before the domain tools. 6 need one tool call (`singleTool: true`), 4 do not (`singleTool: false`). Fixed seed data, reseeded by the runner before the run.
 - M0: no MCP. `Read`, `Grep`, `Glob` only.
 - M1: Postgres MCP Pro 1.6.0 (`crystaldba/postgres-mcp`, image pinned by digest `sha256:dbbd3468...b6e6b` in `m1.json`, Docker, stdio, `--access-mode=restricted`). One server instance has one database URI, so there are two: `pgcatalog` and `pgordering`, both with the read-only role `mcp_readonly`. We checked that a `DELETE` is refused.
@@ -252,7 +252,7 @@ Conclusion: when `--agent` is re-passed on `--resume`, the resumed session is of
 - Conclusion: the loop and the stop work as designed: a real fix in round 2, and a hard stop instead of a workaround. The escalation was structural, not a quality problem: the analyst put a file into scope that the pipeline may not edit. Two gaps follow:
   1. The analyst and planner must know which paths the pipeline cannot change (`.claude/**`). Either keep such paths out of scope or mark them "human after merge".
   2. `escalation.md` lists only the reviewer's finding. The implementer's explanation ("the edit tool refused, file is sensitive") was only in `runs/`. The escalation report should include the implementer's last message.
-- Next: decided (b), no PR (see below). Both gaps fixed on 2026-11-17: (1) `tools/pipeline/lib/protected.mjs` holds the single list of paths the pipeline cannot change (`.claude/**`). The analyst and planner prompts are built from it and tell them to put such changes under `## Human after merge`; `spec` warns when Scope names one. (2) `escalation.md` now includes the implementer's last message from `runs/implementer-<k>.json`. Covered by unit tests; not yet exercised in a live run.
+- Next: decided (b), no PR (see below). Both gaps fixed on 2026-11-17: (1) `tools/pipeline/lib/protected.mjs` holds the single list of paths the pipeline cannot change (`.claude/**`). The analyst, planner and reviewer prompts are built from it: such changes go under `## Human after merge` and are never blocking. `spec` warns when the spec asks for one elsewhere. (2) `escalation.md` now includes the implementer's last message from `runs/implementer-<k>.json`. Covered by unit tests; not yet exercised in a live run.
 - Decision (Andrei, 2026-11-16): option (b). The escalated work is closed as the experiment's result, with no PR. The worktree and `agent/4` were removed; the artifacts stay in `.work/4/` (gitignored). Issue #4 stays open: ARCH-06 is still unfixed in the code.
 
 ## E14. AI review in CI with a Pro subscription token (2026-11-17)

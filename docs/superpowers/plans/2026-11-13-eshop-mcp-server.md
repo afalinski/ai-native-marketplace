@@ -227,11 +227,11 @@ Answers risk R1. Nothing from this task is committed except its findings (record
 
 **Files:**
 - Create: `eval/mcp/config/m0.json` (`{"mcpServers":{}}`), `m1.json` (Postgres MCP Pro), `m2.json` (eshop)
-- Create: `eval/mcp/run-eval.ps1`, `eval/mcp/grade.ps1`, `eval/mcp/prompt.md`
+- Create: `eval/mcp/run-eval.ps1`, `eval/mcp/grade.ps1`, `eval/mcp/prompt.txt` (named `prompt.md` until 2026-11-17)
 - Modify: `docs/experiments.md` (E10), `docs/metrics.md` (stage 2 section)
 
 **Interfaces:**
-- `prompt.md` (exact first line): `Answer using only the tools you have. If you cannot answer from the available data, start your reply with CANNOT_ANSWER.` followed by `{question}`.
+- `prompt.txt` (named `prompt.md` until 2026-11-17; exact first line): `Answer using only the tools you have. If you cannot answer from the available data, start your reply with CANNOT_ANSWER.` followed by `{question}`.
 - `run-eval.ps1 -Variants M0,M1,M2 -Runs 1 -Model sonnet [-Questions q01,q02]`: reseeds via `setup-db.ps1` first; for each question × variant × run calls `$env:CLAUDE_EXE -p <prompt> --model <model> --output-format stream-json --verbose --strict-mcp-config --mcp-config eval/mcp/config/<v>.json --allowedTools "Read,Grep,Glob,<server>" --disallowedTools "Bash,PowerShell,Write,Edit,WebFetch,WebSearch,mcp__eshop__cancel_order"` where `<server>` is `mcp__eshop` (M2), `mcp__postgres` (M1), nothing (M0); writes `eval/mcp/results/<yyyy-MM-dd-HHmm>/<v>/<qid>-<run>.jsonl`. `$env:CLAUDE_EXE` defaults to the VS Code extension binary path from the spec.
 - `grade.ps1 -ResultsDir <dir>`: per file reads the last `type == "result"` event (`result`, `duration_ms`, `num_turns`, `usage.input_tokens`, `usage.output_tokens`, `total_cost_usd`) and counts `tool_use` blocks; outcome = `abstained` if result starts with `CANNOT_ANSWER`, else `correct` if expected values match (`all`/`any`, case-insensitive substring), else `wrong`. Prints a markdown table per variant: correct / abstained / wrong, mean tool calls, mean input+output tokens, mean seconds, sum `total_cost_usd` (labelled "API-equivalent estimate"), plus a per-question table split by `singleTool`.
 
