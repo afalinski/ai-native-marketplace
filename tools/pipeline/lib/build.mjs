@@ -6,6 +6,8 @@ import { mapTestProjects } from "./testrun.mjs";
 import { renderReviewMd, runRounds } from "./loop.mjs";
 import { renderReport } from "./report.mjs";
 import { addIntervention, readInterventions, roleEntry, sha256, workDirFor } from "./workdir.mjs";
+import { protectedPathsInstruction } from "./protected.mjs";
+import { escalationMd, lastImplementerMessage } from "./escalation.mjs";
 
 const SCHEMA_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../review.schema.json");
 const write = (p, text) => {
@@ -24,25 +26,6 @@ class EnvironmentError extends Error {}
 function readSpecRun(workDir) {
   const p = path.join(workDir, "spec-run.json");
   return existsSync(p) ? [JSON.parse(readFileSync(p, "utf8"))] : [];
-}
-
-function escalationMd({ result, lastTests, lastReview }) {
-  const open = (lastReview?.findings ?? []).filter((f) => f.severity === "blocking");
-  return [
-    "# Escalation",
-    "",
-    `Reason: ${result.reason}`,
-    `Rounds used: ${result.rounds}`,
-    "",
-    "## Open blocking findings",
-    "",
-    open.length ? open.map((f) => `- \`${f.file}:${f.line}\` [${f.rule}] ${f.summary}`).join("\n") : "none (see reason)",
-    "",
-    "## Tests",
-    "",
-    lastTests ? `${lastTests.green ? "green" : "red"}\n\n\`\`\`\n${lastTests.log}\n\`\`\`` : "not run",
-    "",
-  ].join("\n");
 }
 
 // `build <n>`: plan -> rounds -> docs -> commit -> report (-> push + PR). Returns an exit code (0 / 1 / 2).
@@ -115,7 +98,7 @@ export async function build({ n, flags, repo, deps, log }) {
   // planner
   const planPath = path.join(workDir, "plan.md");
   const plan = await callRole("planner", 0, {
-    prompt: `Work directory (absolute): ${workDir}\nRead ${specPath} and write ${planPath}.`,
+    prompt: `Work directory (absolute): ${workDir}\nRead ${specPath} and write ${planPath}.\n${protectedPathsInstruction()}`,
     permissionMode: "acceptEdits",
   });
   record("planner", 0, plan);
@@ -261,7 +244,7 @@ ${fix}`;
   };
 
   if (result.outcome !== "success") {
-    write(path.join(workDir, "escalation.md"), escalationMd({ result, lastTests, lastReview: lastVerdict }));
+    write(path.join(workDir, "escalation.md"), escalationMd({ result, lastTests, lastReview: lastVerdict, implementerLast: lastImplementerMessage(workDir) }));
     addIntervention(workDir, "escalation", `${result.reason} after ${result.rounds} round(s)`);
     finish("escalated");
     log(`escalated (${result.reason}) after ${result.rounds} round(s); see ${path.join(workDir, "escalation.md")}`);
