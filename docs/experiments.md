@@ -245,7 +245,7 @@ Conclusion: when `--agent` is re-passed on `--resume`, the resumed session is of
   - Fixed the E12 line-ending bug first: candidates now come from `git status`; under `core.autocrlf=true`, `git diff --name-only` misses them.
   - Opened issue #4, ran `spec 4` and approved the spec without edits. Its criterion 8 (`aspire run` / e2e) was known not to be checkable inside the loop.
   - Ran `build 4` without `--pr`.
-- Result: escalated after 3 rounds; 17 min and $3.98 including spec (client-side estimate).
+- Result: escalated after 3 rounds; 17 min and $3.50 including spec (client-side estimate).
   - **Round 1 → 2 was a real fix loop.** Two functional tests were red, including the new valid-create test, which returned 500. The implementer found the cause: in the functional test host, `IntegrationEventLogService` looks up event types in the test assembly. It fixed the cause, and round 2 was all green.
   - **Rounds 2 and 3 were blocked by one line.** The spec required updating `.claude/rules/ordering.md`. Claude Code treats `.claude/` as sensitive, so the Edit was denied even under `acceptEdits` (`permission_denials` in `runs/implementer-2.json` and `-3.json`). The implementer did not work around it with a shell edit and asked a human to make the change. Round 3 cost only $0.06 because there was nothing else it was allowed to do.
   - **The reviewer was consistent.** It kept the one unmet spec item blocking, matched its verdict to its findings every round, and never made the unverifiable criterion 8 blocking.
