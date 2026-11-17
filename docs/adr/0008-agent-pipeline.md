@@ -37,6 +37,10 @@ Build the pipeline as code that calls `claude -p` with a role. Four decisions of
   - The token is personal, so this setup is valid for this pet project, not for a team.
   - There is no spending limit separate from the subscription. `timeout-minutes` and `concurrency` in the workflow bound each run.
 - **Way back.** For a team rollout, use a Claude Console API key with a spending limit: change one input to `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}`.
+- **Status (2026-11-17): blocked upstream.**
+  - Every CI run stops on the first request: `is_error`, 1 turn, $0, about 2 s after start. That happened with a new token, and again after Pro credits were added.
+  - The same signature is reported in the open issue [anthropics/claude-code-action#1614](https://github.com/anthropics/claude-code-action/issues/1614), for Pro, Max and Team accounts. It shows as a 401 "OAuth access token is invalid" in CI, while the same account works locally. There is no maintainer fix yet.
+  - Andrei decided to keep the workflow and the secret as they are, and to review PRs locally with the `code-review` plugin (`/code-review <PR>`) until the issue is fixed or a Console API key is funded.
 
 ## Why
 <!-- Andrei writes this section -->
