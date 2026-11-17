@@ -30,9 +30,7 @@ Build the pipeline as code that calls `claude -p` with a role. Four decisions of
 - **No agent test ideas.** The tests are only as good as the implementer's and the reviewer's judgement.
 - Details: `docs/superpowers/specs/2026-11-16-agent-pipeline-design.md`, `docs/experiments.md` (E12, E13).
 
-## Amendment (2026-11-17): CI review uses the subscription token. Reverted the same day.
-**Reverted.** With `CLAUDE_CODE_OAUTH_TOKEN`, every CI run stopped on the first request (`is_error`, 1 turn, $0). The action hides the error text, so the cause was not found. Andrei bought $5 of Console credits, and the workflow went back to `anthropic_api_key`, as decision 2 says. The original amendment follows for the record.
-
+## Amendment (2026-11-17): CI review uses the subscription token
 - **Change to the second decision.** The PR review workflow (`.github/workflows/claude-code-review.yml`) authenticates with `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, not with a separate API key. Andrei decided this to avoid paying for API credits on top of his Pro subscription.
 - **Accepted costs.**
   - Reviews draw on his Pro subscription limits, the same ones his local sessions use.

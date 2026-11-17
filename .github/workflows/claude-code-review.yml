@@ -4,9 +4,10 @@
 #
 # Needs, set up by the repo owner:
 #   - the Claude GitHub App installed on this repository
-#   - the repository secret ANTHROPIC_API_KEY: a Claude Console API key with prepaid credits
-#     (ADR-008 decision 2). The subscription-token variant was tried on 2026-11-17 and failed
-#     in CI; see the ADR-008 amendment.
+#   - the repository secret CLAUDE_CODE_OAUTH_TOKEN, made with `claude setup-token`.
+#     It is the owner's Pro subscription: reviews use his subscription limits. This deviates
+#     from ADR-008 decision 2 (a separate API key with a spending limit); for a team, switch back
+#     to `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}`.
 #
 # Claude skips draft and closed PRs, PRs it judges trivial, and PRs it has already commented on.
 # GitHub withholds secrets from fork PRs, so only PRs from branches in this repo are reviewed.
@@ -37,7 +38,7 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: "https://github.com/anthropics/claude-plugins-official.git"
           plugins: "code-review@claude-plugins-official"
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
