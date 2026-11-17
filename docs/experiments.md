@@ -254,3 +254,18 @@ Conclusion: when `--agent` is re-passed on `--resume`, the resumed session is of
   2. `escalation.md` lists only the reviewer's finding. The implementer's explanation ("the edit tool refused, file is sensitive") was only in `runs/`. The escalation report should include the implementer's last message.
 - Next: decide what to do with the escalated worktree (a human applies the one-line edit, then commit and PR, which counts as an intervention), then fix both gaps.
 - Decision (Andrei, 2026-11-16): option (b). The escalated work is closed as the experiment's result, with no PR. The worktree and `agent/4` were removed; the artifacts stay in `.work/4/` (gitignored). Issue #4 stays open: ARCH-06 is still unfixed in the code.
+
+## E14. AI review in CI with a Pro subscription token (2026-11-17)
+- Hypothesis: `anthropics/claude-code-action@v1` with the `code-review` plugin can review every PR, authenticated with `claude setup-token` from a personal Pro subscription, at no extra cost.
+- What I did:
+  - Added `.github/workflows/claude-code-review.yml` and installed the Claude GitHub App.
+  - Added the secret `CLAUDE_CODE_OAUTH_TOKEN`.
+  - Opened PR #5 and reran the review several times.
+- Result:
+  - **Run 1 skipped itself.** The action runs only when the same workflow file is on the default branch (`main` of the fork). Fixed with a one-file PR #6 to `main`.
+  - **Every run after that failed** about 2 s after start: `is_error`, 1 turn, $0, no model usage. This held with a re-entered token and after Andrei bought extra Pro credits.
+  - **The action hides the error text,** and a debug rerun does not show it either.
+  - **The same signature is an open upstream issue,** [anthropics/claude-code-action#1614](https://github.com/anthropics/claude-code-action/issues/1614). It hits Pro, Max and Team accounts and shows as a 401 "OAuth access token is invalid" in CI, while the same account works locally. Several reporters moved to Console API keys.
+- Conclusion: the approach is documented but not reliable today. For a team, the Console API key (ADR-008 decision 2) stays the right choice. Andrei kept the workflow and secret, and reviews PRs locally with `/code-review <PR>` until #1614 is fixed or a Console key is funded. Lessons:
+  - A workflow change must reach the default branch before it takes effect.
+  - "Success" in the Actions UI can hide a skipped or failed review.
